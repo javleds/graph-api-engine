@@ -1,0 +1,21 @@
+{
+  "id": "0199570c-8a60-7c8c-8f93-ae3c7a7f301e",
+  "status": "completed",
+  "result": {
+    "pokemons": []
+  },
+  "errors": [],
+  "errorSummary": {
+    "total": 0,
+    "returned": 0,
+    "truncated": false
+  },
+  "roots": [
+    {
+      "name": "pokemons",
+      "status": "completed",
+      "dataAvailable": true
+    }
+  ],
+  "error": null
+}

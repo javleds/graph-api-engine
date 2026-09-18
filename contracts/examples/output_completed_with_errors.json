@@ -1,0 +1,41 @@
+{
+  "eventId": "01995720-1620-75b8-97ec-a45aac2b215e",
+  "type": "execution.completed_with_errors",
+  "id": "0199570c-8a60-7c8c-8f93-ae3c7a7f301e",
+  "status": "completed_with_errors",
+  "occurredAt": "2026-09-18T08:20:00Z",
+  "resultIncluded": false,
+  "errorsIncluded": true,
+  "errors": [
+    {
+      "code": "UPSTREAM_UNAUTHORIZED",
+      "message": "El proveedor rechazó la autenticación de esta llamada.",
+      "nodePath": "pokemons[0].details",
+      "definitionPath": "/definition/calls/children/0",
+      "stage": "fetch",
+      "upstreamStatus": 401,
+      "attempts": 1,
+      "retryable": false,
+      "retryExhausted": false,
+      "descendantsSkipped": false,
+      "scope": "node"
+    }
+  ],
+  "errorSummary": {
+    "total": 1,
+    "returned": 1,
+    "truncated": false
+  },
+  "roots": [
+    {
+      "name": "pokemons",
+      "status": "completed_with_errors",
+      "dataAvailable": true
+    }
+  ],
+  "error": null,
+  "links": {
+    "self": "https://engine.example.com/v1/executions/0199570c-8a60-7c8c-8f93-ae3c7a7f301e",
+    "result": "https://engine.example.com/v1/executions/0199570c-8a60-7c8c-8f93-ae3c7a7f301e/result"
+  }
+}

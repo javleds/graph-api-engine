@@ -1,0 +1,32 @@
+{
+  "definition": {
+    "version": 1,
+    "api": {
+      "baseUrl": "https://example.com/api/v1",
+      "limits": {
+        "requests": 100,
+        "per": "1m"
+      }
+    },
+    "calls": [
+      {
+        "name": "pokemons",
+        "type": "collection",
+        "select": "data",
+        "request": {
+          "method": "GET",
+          "path": "/pokemons"
+        }
+      },
+      {
+        "name": "games",
+        "type": "collection",
+        "select": "data",
+        "request": {
+          "method": "GET",
+          "path": "/games"
+        }
+      }
+    ]
+  }
+}

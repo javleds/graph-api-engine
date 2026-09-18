@@ -1,0 +1,96 @@
+{
+  "definition": {
+    "version": 1,
+    "api": {
+      "baseUrl": "https://example.com/api/v1",
+      "auth": {
+        "type": "bearer",
+        "token": "REEMPLAZAR_CON_TOKEN_DEL_PROVEEDOR"
+      },
+      "headers": {
+        "Accept": "application/json"
+      },
+      "limits": {
+        "requests": 100,
+        "per": "1m",
+        "concurrency": 10
+      },
+      "cache": {
+        "ttl": "1h"
+      }
+    },
+    "calls": {
+      "name": "pokemons",
+      "type": "collection",
+      "select": "data",
+      "request": {
+        "method": "GET",
+        "path": "/pokemons",
+        "query": {
+          "perPage": 100
+        }
+      },
+      "pagination": {
+        "page": "page",
+        "pageSize": "perPage",
+        "start": 1,
+        "pages": "all"
+      },
+      "cache": false,
+      "children": [
+        {
+          "name": "details",
+          "type": "single",
+          "select": "data",
+          "request": {
+            "method": "GET",
+            "path": "/pokemons/{parent.id}"
+          },
+          "cache": {
+            "ttl": "24h"
+          }
+        },
+        {
+          "name": "games",
+          "type": "collection",
+          "select": "data",
+          "request": {
+            "method": "GET",
+            "path": "/pokemons/{pokemons.id}/games"
+          },
+          "cache": false,
+          "children": [
+            {
+              "name": "details",
+              "type": "single",
+              "select": "data",
+              "request": {
+                "method": "GET",
+                "path": "/games/{parent.id}"
+              },
+              "limits": {
+                "requests": 50,
+                "per": "1m"
+              },
+              "cache": {
+                "ttl": "7d"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "webhook": {
+    "url": "https://consumer.example.com/webhooks/api-engine",
+    "method": "POST",
+    "headers": {
+      "X-Integration": "pokemon-import"
+    },
+    "auth": {
+      "type": "bearer",
+      "token": "REEMPLAZAR_CON_TOKEN_DEL_WEBHOOK"
+    },
+    "payload": "status"
+  }
+}
