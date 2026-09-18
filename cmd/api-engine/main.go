@@ -7,10 +7,22 @@ import (
 )
 
 func main() {
-	if len(os.Args) == 2 && os.Args[1] == "version" {
-		fmt.Println("api-engine development", runtime.Version())
-		return
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	fmt.Fprintln(os.Stderr, "usage: api-engine version (engine implementation in progress)")
-	os.Exit(2)
+}
+func run(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: api-engine version | validate --file definition.json")
+	}
+	switch args[0] {
+	case "version":
+		fmt.Println("api-engine development", runtime.Version())
+		return nil
+	case "validate":
+		return validate(args[1:])
+	default:
+		return fmt.Errorf("unknown command")
+	}
 }

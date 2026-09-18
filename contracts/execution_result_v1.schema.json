@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:api-engine:contract:execution-result:v1",
+  "title": "ExecutionResultResponseV1",
+  "description": "Envelope terminal publicable de GET /v1/executions/{id}/result. No representa el error HTTP 409 ni la respuesta de seguimiento.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "completed_with_errors"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nodeError"
+      }
+    },
+    "errorSummary": {
+      "$ref": "#/$defs/errorSummary"
+    },
+    "roots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/rootOutcome"
+      },
+      "contains": {
+        "type": "object",
+        "properties": {
+          "dataAvailable": {
+            "const": true
+          }
+        },
+        "required": [
+          "dataAvailable"
+        ]
+      }
+    },
+    "error": {
+      "const": null
+    }
+  },
+  "required": [
+    "id",
+    "status",
+    "result",
+    "errors",
+    "errorSummary",
+    "roots",
+    "error"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "errors": {
+            "maxItems": 0
+          },
+          "errorSummary": {
+            "properties": {
+              "total": {
+                "const": 0
+              },
+              "returned": {
+                "const": 0
+              },
+              "truncated": {
+                "const": false
+              }
+            }
+          },
+          "roots": {
+            "items": {
+              "properties": {
+                "status": {
+                  "const": "completed"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed_with_errors"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "errorSummary": {
+            "properties": {
+              "total": {
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nodeError": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "maxLength": 96
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "scope": {
+          "enum": [
+            "node",
+            "execution"
+          ]
+        },
+        "nodePath": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        },
+        "definitionPath": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        },
+        "stage": {
+          "enum": [
+            "binding",
+            "fetch",
+            "select",
+            "type",
+            "assembly",
+            "pagination",
+            "execution"
+          ]
+        },
+        "upstreamStatus": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 599
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "retryExhausted": {
+          "type": "boolean"
+        },
+        "descendantsSkipped": {
+          "type": "boolean"
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "GET"
+            },
+            "pathTemplate": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            }
+          },
+          "required": [
+            "method",
+            "pathTemplate"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "scope",
+        "nodePath",
+        "definitionPath",
+        "stage",
+        "upstreamStatus",
+        "attempts",
+        "retryable",
+        "retryExhausted",
+        "descendantsSkipped"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "node"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "nodePath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "definitionPath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "stage": {
+                "not": {
+                  "const": "execution"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "execution"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "nodePath": {
+                "const": null
+              },
+              "definitionPath": {
+                "const": null
+              },
+              "stage": {
+                "const": "execution"
+              },
+              "upstreamStatus": {
+                "const": null
+              },
+              "attempts": {
+                "const": 0
+              },
+              "retryable": {
+                "const": false
+              },
+              "retryExhausted": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "errorSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "returned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "total",
+        "returned",
+        "truncated"
+      ]
+    },
+    "rootOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "maxLength": 64
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "completed_with_errors",
+            "failed",
+            "not_started"
+          ]
+        },
+        "dataAvailable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "status",
+        "dataAvailable"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "completed",
+                  "completed_with_errors"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "dataAvailable": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "failed",
+                  "not_started"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "dataAvailable": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
