@@ -1,0 +1,16 @@
+.PHONY: build test check format architecture vuln
+build:
+	go build -o bin/api-engine ./cmd/api-engine
+format:
+	gofmt -w $$(find cmd internal tools test -name '*.go' 2>/dev/null)
+architecture:
+	go run ./tools/architecture-check
+check: architecture
+	test -z "$$(gofmt -l $$(find cmd internal tools test -name '*.go' 2>/dev/null))"
+	go vet ./...
+	go test ./...
+	go test -race ./...
+test:
+	go test ./...
+vuln:
+	go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
