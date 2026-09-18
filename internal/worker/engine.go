@@ -50,6 +50,9 @@ func (e *Engine) Execute(parent context.Context, definition definition.CompiledD
 		processor.branches.Do(&group, func() {
 			started[index] = ctx.Err() == nil
 			outcomes[index], fatals[index] = processor.Process(ctx, root, NodeContext{Path: root.Name, Order: []int{index}, Values: map[string]any{}})
+			if started[index] {
+				processor.progress.rootCompleted(outcomes[index])
+			}
 			if fatals[index] != nil {
 				cancel(fatals[index])
 			}

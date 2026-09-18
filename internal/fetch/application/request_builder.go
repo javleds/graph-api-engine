@@ -20,6 +20,11 @@ func BuildRequestURL(base, path string, query map[string]string) (string, error)
 	if err != nil {
 		return "", errors.New("INVALID_REQUEST_PATH")
 	}
+	for _, segment := range strings.Split(decoded, "/") {
+		if segment == "." || segment == ".." || strings.Contains(segment, `\`) {
+			return "", errors.New("INVALID_REQUEST_PATH")
+		}
+	}
 	u.Path = decoded
 	u.RawPath = escaped
 	values := url.Values{}

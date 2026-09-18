@@ -9,11 +9,20 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
 
 func Open(ctx context.Context, path string, cache bool) (*sql.DB, error) {
+	return OpenConfigured(ctx, path, cache, 5*time.Second)
+}
+
+func OpenConfigured(ctx context.Context, path string, cache bool, busyTimeout time.Duration) (*sql.DB, error) {
+	if busyTimeout < time.Millisecond {
+		return nil, fmt.Errorf("SQLite busy timeout must be at least one millisecond")
+	}
+
 	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -30,7 +39,7 @@ func Open(ctx context.Context, path string, cache bool) (*sql.DB, error) {
 		synchronous = "NORMAL"
 	}
 	params := url.Values{}
-	for _, pragma := range []string{"journal_mode(WAL)", "foreign_keys(ON)", "busy_timeout(5000)", "synchronous(" + synchronous + ")"} {
+	for _, pragma := range []string{"journal_mode(WAL)", "foreign_keys(ON)", fmt.Sprintf("busy_timeout(%d)", busyTimeout.Milliseconds()), "synchronous(" + synchronous + ")"} {
 		params.Add("_pragma", pragma)
 	}
 	dsn := (&url.URL{Scheme: "file", Path: absolute, RawQuery: params.Encode()}).String()

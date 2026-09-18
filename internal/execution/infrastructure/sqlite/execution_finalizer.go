@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 
 	d "github.com/javleds/api-engine/internal/execution/domain"
@@ -18,14 +17,8 @@ func NewExecutionFinalizer(store *ExecutionStore) *ExecutionFinalizer {
 }
 
 func (f *ExecutionFinalizer) Finish(ctx context.Context, c d.ExecutionCompletion) error {
-	if !c.Status.Terminal() {
-		return errors.New("completion requires terminal status")
-	}
-	if c.Status == d.Failed && (c.Error == nil || len(c.Data) != 0) {
-		return errors.New("failed completion requires failure and no result")
-	}
-	if c.Status != d.Failed && (c.Error != nil || !json.Valid(c.Data)) {
-		return errors.New("successful completion requires JSON result and no global failure")
+	if err := d.ValidateCompletion(c); err != nil {
+		return err
 	}
 	snapshot, execution, err := f.store.Load(ctx, c.ID)
 	if err != nil {

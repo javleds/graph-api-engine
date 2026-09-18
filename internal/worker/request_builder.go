@@ -14,14 +14,14 @@ import (
 )
 
 func (p *CallProcessor) buildRequest(ctx context.Context, call definition.CompiledCall, n NodeContext) (fetch.FetchRequest, error) {
-	attempts := 0
-	result := fetch.FetchRequest{BeforeAttempt: p.budget.attempt, OnAttempt: func() {
-		p.progress.attempts.Add(1)
-		attempts++
-		if attempts > 1 {
-			p.progress.retries.Add(1)
+	result := fetch.FetchRequest{BeforeAttempt: func(attemptCtx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-	}, OwnerID: p.ownerID, EndpointTemplate: call.Request.Path.Source, Policy: p.engine.FetchPolicy}
+		return p.budget.attempt(attemptCtx)
+	}, OnAttempt: func() {
+		p.progress.attempts.Add(1)
+	}, OnRetry: func() { p.progress.retries.Add(1) }, OwnerID: p.ownerID, EndpointTemplate: call.Request.Path.Source, Policy: p.engine.FetchPolicy}
 	path, err := call.Request.Path.Resolve(n.Values, true)
 	if err != nil {
 		return result, err

@@ -171,6 +171,7 @@ func (g *LocalAdmissionGate) retainScope(ctx context.Context, rule domain.QuotaR
 			state.rule = rule
 			g.setWarmup(state)
 		}
+		state.lastUsed = g.clock.Now()
 		return nil
 	}
 	if len(g.states) >= g.options.MaxScopes {

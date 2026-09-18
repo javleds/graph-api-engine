@@ -98,3 +98,23 @@ func TestFetchRejectsJSONDepthAndValueBudgets(t *testing.T) {
 		t.Fatalf("values: %v", err)
 	}
 }
+
+func TestLogicalTimeoutPreservesPhysicalAttempts(t *testing.T) {
+	service := NewFetchService(transportStub(func(ctx context.Context, _ domain.OutboundRequest) (domain.RawResponse, error) {
+		<-ctx.Done()
+		return domain.RawResponse{}, ctx.Err()
+	}))
+	_, err := service.Fetch(context.Background(), domain.FetchRequest{Policy: domain.FetchPolicy{OperationTimeout: time.Millisecond, AttemptTimeout: time.Second}})
+	var failure *domain.UpstreamFailure
+	if !errors.As(err, &failure) || failure.Code != "UPSTREAM_TIMEOUT" || failure.Attempts != 1 || failure.RetryExhausted {
+		t.Fatalf("%+v", err)
+	}
+}
+
+func TestRequestURLRejectsTraversalAfterBinding(t *testing.T) {
+	for _, path := range []string{"/items/..", "/items/%2e%2e", "/items/a%2F..%2Fsecret", "/items/%5csecret"} {
+		if _, err := BuildRequestURL("https://example.com/api", path, nil); err == nil {
+			t.Fatalf("accepted %s", path)
+		}
+	}
+}

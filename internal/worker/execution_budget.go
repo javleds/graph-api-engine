@@ -3,10 +3,11 @@ package worker
 import (
 	"context"
 	"errors"
+	fetchdomain "github.com/javleds/api-engine/internal/fetch/domain"
 	"sync/atomic"
 )
 
-var ErrBudgetExceeded = errors.New("EXECUTION_BUDGET_EXCEEDED")
+var ErrBudgetExceeded = fetchdomain.AttemptBudgetExceeded{}
 
 // ExecutionBudget counts discovered work before launching it.
 type ExecutionBudget struct {
@@ -40,11 +41,19 @@ func (b *ExecutionBudget) attempt(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	if b.attempts.Add(1) > b.maxAttempts {
-		b.cancel(ErrBudgetExceeded)
-		return ErrBudgetExceeded
+	for {
+		used := b.attempts.Load()
+		if used >= b.maxAttempts {
+			b.cancel(ErrBudgetExceeded)
+			return ErrBudgetExceeded
+		}
+		if b.attempts.CompareAndSwap(used, used+1) {
+			return nil
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 	}
-	return nil
 }
 
 func (b *ExecutionBudget) retainBytes(count uint64) error {

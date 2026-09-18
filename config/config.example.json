@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "mode": "local",
+  "http": {
+    "address": ":8080",
+    "publicBaseUrl": "https://engine.example.com",
+    "readHeaderTimeout": "5s",
+    "readTimeout": "15s",
+    "writeTimeout": "30s",
+    "idleTimeout": "60s",
+    "maxRequestBytes": 262144
+  },
+  "executions": {
+    "maxConcurrent": 4,
+    "timeout": "6h",
+    "maxDefinitionDepth": 8,
+    "maxDefinitionNodes": 128,
+    "maxChildrenPerNode": 16,
+    "maxRootCalls": 16,
+    "maxBranchGoroutines": 16,
+    "maxPagesPerCall": 1000,
+    "maxLogicalRequests": 50000,
+    "maxHTTPAttempts": 60000,
+    "maxResultNodes": 100000,
+    "maxResultBytes": 16777216,
+    "detectRepeatedPages": true,
+    "progressFlushInterval": "1s",
+    "errors": {
+      "maxDetails": 1000,
+      "maxReportBytes": 1048576,
+      "maxMessageBytes": 512
+    }
+  },
+  "fetch": {
+    "maxConcurrentHTTPRequests": 20,
+    "connectTimeout": "5s",
+    "tlsHandshakeTimeout": "5s",
+    "responseHeaderTimeout": "15s",
+    "attemptTimeout": "30s",
+    "maxResponseBytes": 4194304,
+    "maxJSONDepth": 64,
+    "maxJSONValuesPerResponse": 100000,
+    "maxIdleConnections": 100,
+    "maxIdleConnectionsPerHost": 20,
+    "idleConnectionTimeout": "90s",
+    "retry": {
+      "maxAttempts": 4,
+      "baseDelay": "500ms",
+      "maxBackoff": "10s"
+    }
+  },
+  "throttle": {
+    "driver": "local_pacing",
+    "utilization": 0.95,
+    "maxQuotaScopes": 4096,
+    "coldStart": "wait_one_window",
+    "safetyMargin": "1s",
+    "quotaGroups": []
+  },
+  "deduplication": {
+    "driver": "local_singleflight",
+    "maxActiveFlights": 128,
+    "maxOperationTime": "30m"
+  },
+  "storage": {
+    "driver": "sqlite",
+    "path": "/data/engine.db",
+    "busyTimeout": "5s",
+    "maxOpenConnections": 1,
+    "synchronous": "FULL",
+    "metadataRetention": "30d",
+    "resultRetention": "7d",
+    "minimumFreeDiskBytes": 268435456
+  },
+  "cache": {
+    "driver": "sqlite",
+    "path": "/data/cache.db",
+    "busyTimeout": "5s",
+    "maxOpenConnections": 1,
+    "synchronous": "NORMAL",
+    "maxEntryBytes": 1048576,
+    "maxEntries": 100000,
+    "maxLogicalBytes": 536870912,
+    "maxTTL": "30d"
+  },
+  "webhooks": {
+    "maxConcurrent": 4,
+    "maxPendingDeliveries": 1000,
+    "pollInterval": "1s",
+    "claimLease": "30s",
+    "attemptTimeout": "10s",
+    "maxResponseBytes": 65536,
+    "maxPayloadBytes": 262144,
+    "maxAttempts": 8,
+    "baseDelay": "5s",
+    "maxBackoff": "5m",
+    "deliveryMaxAge": "24h"
+  },
+  "security": {
+    "authenticationEnabled": true,
+    "principalsFile": "/run/secrets/engine-principals.json",
+    "identityKeyFile": "/run/secrets/engine-identity-key",
+    "encryption": {
+      "activeKeyId": "key-2026-09",
+      "keyFiles": {
+        "key-2026-09": "/run/secrets/engine-encryption-key"
+      }
+    },
+    "egress": {
+      "upstreamAllowedOrigins": ["https://example.com"],
+      "webhookAllowedOrigins": ["https://consumer.example.com"],
+      "allowedPrivateCIDRs": [],
+      "allowHTTPForDevelopment": false
+    }
+  },
+  "maintenance": {
+    "interval": "60s",
+    "batchSize": 200
+  },
+  "shutdown": {
+    "gracePeriod": "30s",
+    "persistenceTimeout": "5s"
+  },
+  "observability": {
+    "logLevel": "info",
+    "metricsEnabled": true,
+    "metricsPath": "/metrics"
+  }
+}

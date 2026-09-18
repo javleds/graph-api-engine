@@ -87,3 +87,23 @@ func TestRequestIdentityCanonicalizationAndIsolation(t *testing.T) {
 		t.Fatal("incompatible cache policies shared flight")
 	}
 }
+
+func TestLeaderCacheRecheckReportsHitWithoutPhysicalAttempt(t *testing.T) {
+	input := domain.FetchRequest{OwnerID: "owner", Request: domain.OutboundRequest{Method: "GET", URL: "https://example.com/items"}, Policy: domain.FetchPolicy{CacheEnabled: true, CacheTTL: time.Hour}}
+	key, err := RequestKey([]byte("secret"), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	cache := &memoryCache{missFirst: true, entries: map[string]domain.CacheEntry{key: {Key: key, SchemaVersion: 1, FetchedAt: now, ExpiresAt: now.Add(time.Hour), Response: domain.RawResponse{StatusCode: 200, Body: []byte(`[]`), Attempts: 4}}}}
+	raw := NewFetchService(transportStub(func(context.Context, domain.OutboundRequest) (domain.RawResponse, error) {
+		t.Error("cache recheck performed HTTP")
+		return domain.RawResponse{}, nil
+	}))
+	service := NewCachingFetchService(raw, cache, []byte("secret"))
+	service.Flights = inlineFlight{}
+	result, err := service.Fetch(context.Background(), input)
+	if err != nil || !result.CacheHit || result.ReusedInFlight || result.Response.Attempts != 0 {
+		t.Fatalf("result=%+v error=%v", result, err)
+	}
+}

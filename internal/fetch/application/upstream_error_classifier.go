@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/javleds/api-engine/internal/fetch/domain"
+	"io"
 	"net"
 	"syscall"
 )
@@ -70,7 +71,7 @@ func classifyTransport(err error) *domain.UpstreamFailure {
 		return &domain.UpstreamFailure{Code: "UPSTREAM_TIMEOUT", Retryable: true}
 	}
 	var dns *net.DNSError
-	retryable := errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.EPIPE)
+	retryable := errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.EPIPE)
 	if errors.As(err, &dns) {
 		retryable = dns.IsTemporary || dns.IsTimeout
 	}

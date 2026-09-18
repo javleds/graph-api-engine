@@ -312,3 +312,16 @@ func TestUnknownFetchErrorIsTechnicalAndSanitized(t *testing.T) {
 		t.Fatal(done)
 	}
 }
+
+func TestProgressDistinguishesSuccessfulPartialAndFailedRoots(t *testing.T) {
+	fake := &fakeFetcher{handle: func(_ context.Context, r fetch.FetchRequest) (fetch.FetchResult, error) {
+		if strings.HasSuffix(r.Request.URL, "/good") || strings.HasSuffix(r.Request.URL, "/partial") {
+			return response(`{"id":1}`)
+		}
+		return fetch.FetchResult{}, &fetch.UpstreamFailure{Code: "UPSTREAM_NOT_FOUND", Attempts: 1}
+	}}
+	done := run(fake, call("good", "single", "/good"), call("partial", "single", "/partial", call("child", "single", "/child")), call("failed", "single", "/failed"))
+	if done.Progress.SuccessfulRootCalls != 1 || done.Progress.PartialRootCalls != 1 || done.Progress.FailedRootCalls != 1 {
+		t.Fatal(done.Progress)
+	}
+}

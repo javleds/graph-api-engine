@@ -19,6 +19,7 @@ type FetchService struct {
 	Clock         clock.Clock
 	BeforeAttempt func(context.Context) error
 	OnAttempt     func()
+	OnRetry       func()
 }
 
 func NewFetchService(transport ports.OutboundTransport) *FetchService {
@@ -30,7 +31,29 @@ func (s *FetchService) Fetch(ctx context.Context, input domain.FetchRequest) (do
 	ctx, cancel := context.WithTimeout(ctx, input.Policy.OperationTimeout)
 	defer cancel()
 	input.Admission.Deadline, _ = ctx.Deadline()
+	if account, ok := ports.AttemptAccountFromContext(ctx); ok {
+		input.BeforeAttempt = account.Reserve
+		input.OnAttempt = account.Sent
+		input.OnRetry = account.Retried
+	}
+	observed := 0
+	onAttempt := input.OnAttempt
+	input.OnAttempt = func() {
+		observed++
+		if onAttempt != nil {
+			onAttempt()
+		}
+	}
 	response, err := s.fetchPhysical(ctx, input)
+	if errors.Is(err, context.DeadlineExceeded) {
+		err = &domain.UpstreamFailure{Code: "UPSTREAM_TIMEOUT", Attempts: observed, Retryable: true}
+	}
+	var failure *domain.UpstreamFailure
+	if errors.As(err, &failure) && failure.Attempts == 0 {
+		copy := *failure
+		copy.Attempts = observed
+		err = &copy
+	}
 	return domain.FetchResult{Response: response}, err
 }
 
@@ -103,6 +126,14 @@ func (s *FetchService) attempt(ctx context.Context, input domain.FetchRequest, a
 	}
 	if input.OnAttempt != nil {
 		input.OnAttempt()
+	}
+	if attempt > 1 {
+		if s.OnRetry != nil {
+			s.OnRetry()
+		}
+		if input.OnRetry != nil {
+			input.OnRetry()
+		}
 	}
 	response, err = s.Transport.Execute(attemptCtx, input.Request)
 	if ctx.Err() != nil {

@@ -53,6 +53,9 @@ func (p *CallProcessor) enrichItem(ctx context.Context, call definition.Compiled
 			fatal = errors.New("INTERNAL_WORKER_PANIC")
 			p.budget.cancel(fatal)
 		}
+		if fatal != nil {
+			p.budget.cancel(fatal)
+		}
 	}()
 	if len(call.Children) == 0 {
 		raw, err := encodeBounded(value, p.engine.Options.MaxResultBytes)

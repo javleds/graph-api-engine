@@ -7,17 +7,21 @@ import (
 )
 
 type memoryCache struct {
-	mu      sync.Mutex
-	entries map[string]domain.CacheEntry
-	gets    int
-	puts    int
-	err     error
+	missFirst bool
+	mu        sync.Mutex
+	entries   map[string]domain.CacheEntry
+	gets      int
+	puts      int
+	err       error
 }
 
 func (m *memoryCache) Get(_ context.Context, key string) (domain.CacheEntry, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.gets++
+	if m.missFirst && m.gets == 1 {
+		return domain.CacheEntry{}, false, nil
+	}
 	entry, ok := m.entries[key]
 	return entry.Clone(), ok, m.err
 }

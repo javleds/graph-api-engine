@@ -7,6 +7,7 @@ import (
 	"errors"
 	fetch "github.com/javleds/api-engine/internal/fetch/domain"
 	"github.com/javleds/api-engine/internal/notification/domain"
+	"io"
 	"net"
 	"syscall"
 )
@@ -34,7 +35,7 @@ func classifySendError(err error) domain.WebhookAttempt {
 		return domain.WebhookAttempt{ErrorCode: "WEBHOOK_TIMEOUT", Retryable: true}
 	}
 	var dns *net.DNSError
-	retryable := errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.EPIPE)
+	retryable := errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.EPIPE)
 	if errors.As(err, &dns) {
 		retryable = dns.IsTemporary || dns.IsTimeout
 	}

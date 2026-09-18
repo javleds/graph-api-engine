@@ -38,6 +38,9 @@ func (p *CallProcessor) Process(ctx context.Context, call definition.CompiledCal
 			fatal = errors.New("INTERNAL_WORKER_PANIC")
 			p.budget.cancel(fatal)
 		}
+		if fatal != nil {
+			p.budget.cancel(fatal)
+		}
 	}()
 	if ctx.Err() != nil {
 		return outcome, nil

@@ -16,6 +16,7 @@ import (
 )
 
 type CreateExecution struct {
+	OnCreated         func(domain.Execution)
 	Store             ports.ExecutionStore
 	Dispatcher        ports.ExecutionDispatcher
 	Finalizer         ports.ExecutionFinalizer
@@ -77,6 +78,9 @@ func (c *CreateExecution) Execute(ctx context.Context, command CreateExecutionCo
 			return result, fmt.Errorf("dispatch and terminal persistence failed: %w", finishErr)
 		}
 		return result, domain.StorageError("DISPATCH_FAILED")
+	}
+	if c.OnCreated != nil {
+		c.OnCreated(execution)
 	}
 	return result, nil
 }

@@ -24,7 +24,7 @@ func (s *Server) createExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := r.Header.Get("Idempotency-Key")
-	if key != "" && !regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`).MatchString(key) {
+	if _, supplied := r.Header["Idempotency-Key"]; supplied && !regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`).MatchString(key) {
 		writeError(w, 422, "INVALID_DEFINITION", "")
 		return
 	}
@@ -51,6 +51,12 @@ func (s *Server) createExecution(w http.ResponseWriter, r *http.Request) {
 	if s.ValidateDestinations != nil {
 		if err := s.ValidateDestinations(*compiled); err != nil {
 			writeError(w, 422, "EGRESS_DENIED", "")
+			return
+		}
+	}
+	if s.ValidateQuotas != nil {
+		if err := s.ValidateQuotas(r.Context(), *compiled); err != nil {
+			presentError(w, err, "")
 			return
 		}
 	}

@@ -3,6 +3,7 @@ package domain
 import "context"
 
 type FetchRequest struct {
+	OnRetry            func()
 	BeforeAttempt      func(context.Context) error
 	OnAttempt          func()
 	Request            OutboundRequest

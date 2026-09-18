@@ -61,11 +61,12 @@ func (s *CachingFetchService) Fetch(ctx context.Context, input domain.FetchReque
 		return result.Response, nil
 	}
 	if s.Flights != nil {
-		result, err := s.Flights.Do(ctx, FlightKey(s.IdentityKey, key, input), work)
-		return domain.FetchResult{Response: result.Response, ReusedInFlight: result.ReusedInFlight}, err
+		subscriberCtx := ports.WithAttemptAccount(ctx, requestAttemptAccount{reserve: input.BeforeAttempt, sent: input.OnAttempt, retried: input.OnRetry})
+		result, err := s.Flights.Do(subscriberCtx, FlightKey(s.IdentityKey, key, input), work)
+		return domain.FetchResult{Response: result.Response, ReusedInFlight: result.ReusedInFlight, CacheHit: err == nil && !result.ReusedInFlight && result.Response.Attempts == 0}, err
 	}
 	response, err := work(ctx)
-	return domain.FetchResult{Response: response}, err
+	return domain.FetchResult{Response: response, CacheHit: err == nil && response.Attempts == 0}, err
 }
 
 func (s *CachingFetchService) lookup(ctx context.Context, key string, policy domain.FetchPolicy) (domain.RawResponse, bool) {

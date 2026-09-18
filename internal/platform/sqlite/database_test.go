@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestDatabaseDurabilityMigrationsAndReconnection(t *testing.T) {
@@ -21,6 +22,11 @@ func TestDatabaseDurabilityMigrationsAndReconnection(t *testing.T) {
 			if err := Migrate(ctx, db, kind); err != nil {
 				t.Fatal(err)
 			}
+			var version string
+			if err := db.QueryRow("SELECT sqlite_version()").Scan(&version); err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("embedded SQLite: %s", version)
 			db.SetMaxIdleConns(0)
 			for name, want := range map[string]int{"foreign_keys": 1, "busy_timeout": 5000} {
 				var got int
@@ -69,5 +75,18 @@ func TestExclusiveInstanceAndVersion(t *testing.T) {
 		if SafeVersion(version) != want {
 			t.Fatalf("version %s", version)
 		}
+	}
+}
+
+func TestConfiguredBusyTimeout(t *testing.T) {
+	db, err := OpenConfigured(context.Background(), filepath.Join(t.TempDir(), "engine.db"), false, 275*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxIdleConns(0)
+	var timeout int
+	if err := db.QueryRow("PRAGMA busy_timeout").Scan(&timeout); err != nil || timeout != 275 {
+		t.Fatalf("timeout=%d error=%v", timeout, err)
 	}
 }

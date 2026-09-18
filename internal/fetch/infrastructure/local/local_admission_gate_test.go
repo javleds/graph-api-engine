@@ -198,3 +198,19 @@ func TestGateRegisterDoesNotChargeAndEvictsOnlyIdle(t *testing.T) {
 		t.Fatal("idle scope not reclaimed")
 	}
 }
+
+func TestRegistrationRefreshesScopeRetention(t *testing.T) {
+	timer := &manualClock{now: time.Now()}
+	gate := NewLocalAdmissionGate(GateOptions{MaxScopes: 1, AttemptTimeout: time.Second, ProcessStartedAt: timer.Now().Add(-time.Hour)}, nil, timer)
+	rules := []domain.QuotaRule{{Scope: "accepted", Requests: 1, Period: time.Second}}
+	if err := gate.Register(context.Background(), rules); err != nil {
+		t.Fatal(err)
+	}
+	timer.Advance(2 * time.Second)
+	if err := gate.Register(context.Background(), rules); err != nil {
+		t.Fatal(err)
+	}
+	if err := gate.Register(context.Background(), []domain.QuotaRule{{Scope: "other"}}); err == nil {
+		t.Fatal("recently registered policy was evicted")
+	}
+}

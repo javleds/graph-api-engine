@@ -19,6 +19,7 @@ func TestAtomicFinalizationAndExpiration(t *testing.T) {
 		t.Fatalf("claim: %v", err)
 	}
 	c := d.ExecutionCompletion{ID: snapshot.ID, ExpectedVersion: 1, Status: d.Completed, Report: d.EmptyReport(), Data: []byte(`{"items":[]}`), FinishedAt: time.Now(), ResultExpiresAt: time.Now().Add(time.Hour), Delivery: &d.WebhookRecord{ID: "delivery", EventID: "event", Target: []byte("secret-target"), Payload: []byte(`{"eventId":"event"}`), DeadlineAt: time.Now().Add(time.Hour)}}
+	c.Report.Roots = []d.RootOutcome{{Name: "items", Status: d.Completed, DataAvailable: true}}
 	finalizer := NewExecutionFinalizer(store)
 	if _, err := db.Exec(`CREATE TRIGGER reject_delivery BEFORE INSERT ON webhook_deliveries BEGIN SELECT RAISE(ABORT,'simulated disk failure'); END`); err != nil {
 		t.Fatal(err)

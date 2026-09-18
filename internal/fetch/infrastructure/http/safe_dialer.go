@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"github.com/javleds/api-engine/internal/fetch/domain"
 	securityports "github.com/javleds/api-engine/internal/security/application/ports"
 	"net"
 	"net/netip"
@@ -32,7 +33,7 @@ func (d *SafeDialer) DialContext(ctx context.Context, network, address string) (
 		ips[i] = address.Unmap()
 	}
 	if err = d.Policy.ValidateAddresses(ips); err != nil {
-		return nil, err
+		return nil, &domain.UpstreamFailure{Code: "EGRESS_DENIED"}
 	}
 	dialer := net.Dialer{Timeout: d.Timeout}
 	for _, ip := range ips {

@@ -36,7 +36,9 @@ func presentError(w http.ResponseWriter, err error, id string) {
 		if validation.Code == "INVALID_JSON" {
 			status = 400
 		}
-		writeError(w, status, validation.Code, id)
+		requestID := uuid.NewString()
+		w.Header().Set("X-Request-Id", requestID)
+		writeJSON(w, status, dto.ErrorResponse{Error: dto.PublicError{Code: validation.Code, Message: "The definition is invalid.", Details: []dto.ErrorDetail{{Path: validation.Path, Code: validation.Code, Message: validation.Message}}}, RequestID: requestID, ID: id})
 		return
 	}
 	var storage executiondomain.StorageError

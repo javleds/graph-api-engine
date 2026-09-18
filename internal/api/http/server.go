@@ -13,6 +13,7 @@ import (
 )
 
 type Server struct {
+	ValidateQuotas       func(context.Context, definitiondomain.CompiledDefinition) error
 	MetricsPath          string
 	WebhookStatus        notificationports.WebhookStatusReader
 	Create               *application.CreateExecution

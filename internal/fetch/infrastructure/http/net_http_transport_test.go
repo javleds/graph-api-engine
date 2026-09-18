@@ -41,3 +41,20 @@ func TestTransportBoundsBodyAndDoesNotRedirect(t *testing.T) {
 		t.Fatalf("status %d hits %d error %v", response.StatusCode, hits, err)
 	}
 }
+
+func TestResolvedPrivateAddressReturnsEgressDenied(t *testing.T) {
+	policy, err := egress.NewPolicy([]string{"https://127.0.0.1"}, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport, err := NewNetHTTPTransport(policy, TransportOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer transport.CloseIdleConnections()
+	_, err = transport.Execute(context.Background(), domain.OutboundRequest{Method: "GET", URL: "https://127.0.0.1"})
+	var failure *domain.UpstreamFailure
+	if !errors.As(err, &failure) || failure.Code != "EGRESS_DENIED" {
+		t.Fatalf("%v", err)
+	}
+}

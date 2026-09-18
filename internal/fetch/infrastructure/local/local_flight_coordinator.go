@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"github.com/javleds/api-engine/internal/fetch/application/ports"
 	"github.com/javleds/api-engine/internal/fetch/domain"
 	"golang.org/x/sync/singleflight"
 	"strconv"
@@ -53,12 +54,16 @@ func (c *LocalFlightCoordinator) Do(ctx context.Context, key string, work func(c
 			workCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.maxOperationTime)
 			c.sequence++
 			state = &flightState{context: workCtx, cancel: cancel, done: make(chan struct{}), generation: strconv.FormatUint(c.sequence, 10)}
+			state.context = ports.WithAttemptAccount(state.context, &flightAttemptAccount{coordinator: c, state: state})
 			c.flights[key] = state
 		}
+		account, _ := ports.AttemptAccountFromContext(ctx)
+		subscription := &flightSubscription{context: ctx, account: account, failure: make(chan error, 1)}
+		state.subscriptions = append(state.subscriptions, subscription)
 		state.subscribers++
 		result := c.group.DoChan(state.generation, func() (any, error) { return c.run(key, state, work) })
 		c.mu.Unlock()
-		return c.await(ctx, key, state, result, exists)
+		return c.await(ctx, state, subscription, result, exists)
 	}
 }
 
@@ -79,10 +84,16 @@ func (c *LocalFlightCoordinator) run(key string, state *flightState, work func(c
 	return work(state.context)
 }
 
-func (c *LocalFlightCoordinator) await(ctx context.Context, key string, state *flightState, result <-chan singleflight.Result, reused bool) (domain.FlightResult, error) {
+func (c *LocalFlightCoordinator) await(ctx context.Context, state *flightState, subscription *flightSubscription, result <-chan singleflight.Result, reused bool) (domain.FlightResult, error) {
 	defer func() {
 		c.mu.Lock()
 		state.subscribers--
+		for index, current := range state.subscriptions {
+			if current == subscription {
+				state.subscriptions = append(state.subscriptions[:index], state.subscriptions[index+1:]...)
+				break
+			}
+		}
 		if state.subscribers == 0 {
 			state.cancel()
 		}
@@ -91,7 +102,15 @@ func (c *LocalFlightCoordinator) await(ctx context.Context, key string, state *f
 	select {
 	case <-ctx.Done():
 		return domain.FlightResult{}, ctx.Err()
+	case err := <-subscription.failure:
+		return domain.FlightResult{ReusedInFlight: reused}, err
 	case completed := <-result:
+		c.mu.Lock()
+		rejection := subscription.rejection
+		c.mu.Unlock()
+		if rejection != nil {
+			return domain.FlightResult{ReusedInFlight: reused}, rejection
+		}
 		if completed.Err != nil {
 			if failure, ok := completed.Err.(*domain.UpstreamFailure); ok {
 				copy := *failure
