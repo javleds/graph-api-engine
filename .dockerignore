@@ -1,0 +1,9 @@
+.git
+bin
+data
+secrets
+*.db
+*.db-wal
+*.db-shm
+coverage.out
+config/config.json

@@ -63,3 +63,11 @@ Cada paso depende de los anteriores e incorpora sus pruebas. Los puertos y fakes
 Cada commit de código debe pasar formato, go vet, go test, go test -race y checker AST. CI verifica formato sin modificar y ejecuta govulncheck fijado. Validar compatibilidad real de toolchain y dependencias antes de fijar versiones. No consumir APIs reales ni secretos en tests. Usar SQLite temporal, reloj inyectable y servidores fake. No alterar checksums de migraciones ya incorporadas.
 
 Revisar diff, secretos, imports, cohesión y archivos seleccionados antes de cada commit. Registrar validaciones y limitaciones temporales en su cuerpo. Terminar únicamente con todos los criterios de §28 demostrados y trazabilidad de §26.
+
+## Registro de implementación
+
+Se conservaron los 16 hitos. El paso 06 incorpora dispatcher y supervisión; el recorrido concreto se incorpora junto con la composición del paso 11 para mantener límites coherentes. El paso 04 incluye la primitiva SQL de finalización atómica y el 12 su orquestación y recuperación.
+
+Entre los pasos 14 y 15 se agrega `fix(throttle): recover failed cooldown initialization`: una lectura inicial cancelada o fallida puede reintentarse sin reiniciar el proceso ni perder pacing/cooldown. Incluye reproducción y regresión concurrente. El historial resultante contiene 17 commits convencionales.
+
+El catálogo del spec incorpora `INTERNAL_WORKER_ERROR` para fallos técnicos distintos de panic. La evidencia y los comandos de aceptación están en [docs/testing.md](../testing.md); la operación y configuración, en [README.md](../../README.md).
