@@ -30,6 +30,16 @@ func (s *Server) getExecution(w http.ResponseWriter, r *http.Request) {
 	var webhook *dto.WebhookStatusResponse
 	if execution.WebhookEnabled {
 		webhook = &dto.WebhookStatusResponse{Status: "not_ready"}
+		if s.WebhookStatus != nil {
+			status, err := s.WebhookStatus.Status(r.Context(), principal.OwnerID, execution.ID)
+			if err != nil {
+				presentError(w, err, "")
+				return
+			}
+			if status != nil {
+				webhook = &dto.WebhookStatusResponse{Status: status.Status, Attempts: status.Attempts}
+			}
+		}
 	}
 	writeJSON(w, 200, dto.ExecutionResponse{ID: execution.ID, Status: execution.Status, CreatedAt: execution.CreatedAt, StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt, Progress: execution.Progress, Webhook: webhook, Error: execution.Error, Errors: report.Errors, ErrorSummary: report.ErrorSummary, Roots: report.Roots, Links: executionLinks(string(execution.ID))})
 }

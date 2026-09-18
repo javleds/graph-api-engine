@@ -6,12 +6,15 @@ import (
 	definitiondomain "github.com/javleds/api-engine/internal/definition/domain"
 	"github.com/javleds/api-engine/internal/execution/application"
 	"github.com/javleds/api-engine/internal/execution/application/ports"
+	notificationports "github.com/javleds/api-engine/internal/notification/application/ports"
 	"github.com/javleds/api-engine/internal/platform/clock"
 	securityports "github.com/javleds/api-engine/internal/security/application/ports"
 	"net/http"
 )
 
 type Server struct {
+	MetricsPath          string
+	WebhookStatus        notificationports.WebhookStatusReader
 	Create               *application.CreateExecution
 	Reader               ports.ExecutionReader
 	Results              ports.ResultReader
@@ -39,7 +42,11 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, 200, map[string]string{"status": "ready"})
 	})
 	if s.Metrics != nil {
-		mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+		path := s.MetricsPath
+		if path == "" {
+			path = "/metrics"
+		}
+		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
 			if _, ok := s.authorize(w, r, "metrics:read"); ok {
 				s.Metrics.ServeHTTP(w, r)
 			}
