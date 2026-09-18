@@ -8,11 +8,12 @@ import (
 
 func TestTypeRules(t *testing.T) {
 	cases := map[string]bool{
-		"package fixture; type One struct { Name string }": true,
-		"package fixture; type One string; type Two int":   false,
-		"package fixture; func hidden(){ type Local int }": false,
-		"package fixture; var model struct {Name string}":  false,
-		"package fixture; var done chan struct{}":          true,
+		"package fixture; type One struct { Name string }":                           true,
+		"package fixture; type One string; type Two int":                             false,
+		"package fixture; func hidden(){ type Local int }":                           false,
+		"package fixture; var model struct {Name string}":                            false,
+		"package fixture; func hidden(){ var model struct{Name string}; _ = model }": false,
+		"package fixture; var done chan struct{}":                                    true,
 	}
 	for source, want := range cases {
 		path := filepath.Join(t.TempDir(), "fixture.go")

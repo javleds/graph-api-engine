@@ -40,7 +40,7 @@ func checkFile(path string) []string {
 				}
 				return true
 			})
-			return false
+			return true
 		}
 		return true
 	})

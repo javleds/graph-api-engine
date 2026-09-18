@@ -11,4 +11,4 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: true
-      - run: make check build vuln
+      - run: make check coverage fuzz build vuln
