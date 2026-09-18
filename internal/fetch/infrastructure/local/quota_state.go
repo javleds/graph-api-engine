@@ -12,8 +12,7 @@ type quotaState struct {
 	cooldown         time.Time
 	active           int
 	lastUsed         time.Time
-	ready            chan struct{}
-	loadError        error
+	initialization   *quotaInitialization
 	pendingWrites    int
 	persistenceError error
 }

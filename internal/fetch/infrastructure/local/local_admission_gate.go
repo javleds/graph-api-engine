@@ -119,7 +119,7 @@ func (g *LocalAdmissionGate) eligibility(rules []domain.QuotaRule, now time.Time
 	available := g.active < g.options.MaxConcurrent
 	for _, rule := range rules {
 		state := g.states[rule.Scope]
-		if state.persistenceError != nil || state.loadError != nil {
+		if state.persistenceError != nil || state.initialization.err != nil {
 			return now, false, errors.New("STORAGE_UNAVAILABLE")
 		}
 		if state.pendingWrites > 0 || (state.rule.Concurrency > 0 && state.active >= state.rule.Concurrency) {
@@ -144,65 +144,74 @@ func (g *LocalAdmissionGate) ensureScope(ctx context.Context, rule domain.QuotaR
 }
 
 func (g *LocalAdmissionGate) retainScope(ctx context.Context, rule domain.QuotaRule) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	g.mu.Lock()
-	if state, ok := g.states[rule.Scope]; ok {
-		ready := state.ready
-		state.references++
-		g.mu.Unlock()
-		select {
-		case <-ctx.Done():
-			g.releaseReferences([]string{rule.Scope})
-			return ctx.Err()
-		case <-ready:
+	state, exists := g.states[rule.Scope]
+	if !exists {
+		if len(g.states) >= g.options.MaxScopes {
+			g.evictIdle()
 		}
-		g.mu.Lock()
-		defer g.mu.Unlock()
-		if state.loadError != nil {
-			state.references--
-			return errors.New("STORAGE_UNAVAILABLE")
+		if len(g.states) >= g.options.MaxScopes {
+			g.mu.Unlock()
+			return errors.New("FETCH_CAPACITY_EXCEEDED")
 		}
-		declared := rule.Requests > 0 || rule.Concurrency > 0
-		registered := state.rule.Requests > 0 || state.rule.Concurrency > 0
-		if declared && registered && rule != state.rule {
-			state.references--
-			return &domain.UpstreamFailure{Code: "QUOTA_POLICY_CONFLICT"}
-		}
-		if declared && !registered {
-			state.rule = rule
-			g.setWarmup(state)
-		}
-		state.lastUsed = g.clock.Now()
-		return nil
+		state = &quotaState{rule: rule, lastUsed: g.clock.Now()}
+		g.setWarmup(state)
+		g.states[rule.Scope] = state
 	}
-	if len(g.states) >= g.options.MaxScopes {
-		g.evictIdle()
+	initialize := !exists || state.initialization.err != nil
+	if initialize {
+		state.initialization = &quotaInitialization{ready: make(chan struct{})}
 	}
-	if len(g.states) >= g.options.MaxScopes {
-		g.mu.Unlock()
-		return errors.New("FETCH_CAPACITY_EXCEEDED")
-	}
-	state := &quotaState{rule: rule, ready: make(chan struct{}), lastUsed: g.clock.Now(), references: 1}
-	g.setWarmup(state)
-	g.states[rule.Scope] = state
+	initialization := state.initialization
+	state.references++
 	g.mu.Unlock()
+	if initialize {
+		g.loadCooldown(ctx, rule.Scope, state, initialization)
+	}
+	select {
+	case <-ctx.Done():
+		g.releaseReferences([]string{rule.Scope})
+		return ctx.Err()
+	case <-initialization.ready:
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if initialization.err != nil {
+		state.references--
+		return errors.New("STORAGE_UNAVAILABLE")
+	}
+	declared := rule.Requests > 0 || rule.Concurrency > 0
+	registered := state.rule.Requests > 0 || state.rule.Concurrency > 0
+	if declared && registered && rule != state.rule {
+		state.references--
+		return &domain.UpstreamFailure{Code: "QUOTA_POLICY_CONFLICT"}
+	}
+	if declared && !registered {
+		state.rule = rule
+		g.setWarmup(state)
+	}
+	state.lastUsed = g.clock.Now()
+	return nil
+}
+
+func (g *LocalAdmissionGate) loadCooldown(ctx context.Context, scope string, state *quotaState, initialization *quotaInitialization) {
 	var until time.Time
 	var err error
 	if g.store != nil {
-		until, err = g.store.Get(ctx, rule.Scope)
+		until, err = g.store.Get(ctx, scope)
 	}
 	g.mu.Lock()
-	state.cooldown = until
-	state.loadError = err
-	if err != nil {
-		state.references--
+	defer g.mu.Unlock()
+	if err == nil && until.After(state.cooldown) {
+		now := g.clock.Now()
+		state.cooldown = now.Add(until.Sub(now))
 	}
-	close(state.ready)
+	initialization.err = err
+	close(initialization.ready)
 	g.signal()
-	g.mu.Unlock()
-	if err != nil {
-		return errors.New("STORAGE_UNAVAILABLE")
-	}
-	return nil
 }
 
 func (g *LocalAdmissionGate) setWarmup(state *quotaState) {
@@ -294,7 +303,7 @@ func (g *LocalAdmissionGate) evictIdle() {
 		if retention < g.options.AttemptTimeout {
 			retention = g.options.AttemptTimeout
 		}
-		if state.references == 0 && state.active == 0 && state.pendingWrites == 0 && state.loadError == nil && state.persistenceError == nil && !state.cooldown.After(now) && !state.next.After(now) && now.Sub(state.lastUsed) >= retention {
+		if state.references == 0 && state.active == 0 && state.pendingWrites == 0 && state.initialization.err == nil && state.persistenceError == nil && !state.cooldown.After(now) && !state.next.After(now) && now.Sub(state.lastUsed) >= retention {
 			delete(g.states, scope)
 		}
 	}
