@@ -3655,6 +3655,7 @@ Los códigos de esta sección son el contrato propio del engine. Los mensajes pu
 | `EGRESS_DENIED` | Validación o nodo | Destino no autorizado; nunca reintentar para evadir la política. |
 | `PROCESS_INTERRUPTED` | Recuperación | Estado perdido; no hay resultado publicable tras reiniciar. |
 | `INTERNAL_WORKER_PANIC` | Supervisión | Fallo técnico sanitizado, no un error local upstream. |
+| `INTERNAL_WORKER_ERROR` | Supervisión | Fallo técnico inesperado sin panic; diagnóstico sanitizado y resultado no publicable. |
 | `RESULT_SERIALIZATION_FAILED` | Finalización | No se pudo formar un envelope JSON confiable. |
 | `RESULT_TOO_LARGE` | Finalización | Envelope no cabe; no truncar bytes ni inventar parcial. |
 | `RESULT_NOT_READY` | API | `409` mientras sigue activo. |
