@@ -117,7 +117,10 @@ func TestPartialResultEnvelope(t *testing.T) {
 	now := time.Now()
 	report := domain.EmptyReport()
 	report.Roots = []domain.RootOutcome{{Name: "items", Status: "completed", DataAvailable: true}}
-	err := executionsql.NewExecutionFinalizer(store).Finish(context.Background(), domain.ExecutionCompletion{ID: id, ExpectedVersion: 0, Status: domain.Completed, Report: report, Data: []byte(`{"items":[]}`), FinishedAt: now, ResultExpiresAt: now.Add(time.Hour)})
+	if ok, err := store.Claim(context.Background(), id, "test-worker", 0, now); err != nil || !ok {
+		t.Fatalf("claim: %v", err)
+	}
+	err := executionsql.NewExecutionFinalizer(store).Finish(context.Background(), domain.ExecutionCompletion{ID: id, ExpectedVersion: 1, Status: domain.Completed, Report: report, Data: []byte(`{"items":[]}`), FinishedAt: now, ResultExpiresAt: now.Add(time.Hour)})
 	if err != nil {
 		t.Fatal(err)
 	}

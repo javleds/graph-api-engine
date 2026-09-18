@@ -44,12 +44,12 @@ func (c *CreateExecution) Execute(ctx context.Context, command CreateExecutionCo
 	}
 	if c.CheckCapacity != nil {
 		if err := c.CheckCapacity(ctx); err != nil {
-			return CreationResult{}, err
+			return c.replayAfterRejection(ctx, command.OwnerID, key, fingerprint, err)
 		}
 	}
 	reservation, err := c.Dispatcher.Reserve(ctx)
 	if err != nil {
-		return CreationResult{}, err
+		return c.replayAfterRejection(ctx, command.OwnerID, key, fingerprint, err)
 	}
 	defer reservation.Cancel()
 	id, err := c.IDs.NewID()
@@ -85,4 +85,22 @@ func (c *CreateExecution) identity(purpose, value string) string {
 	mac := hmac.New(sha256.New, c.IdentityKey)
 	mac.Write([]byte(purpose + "\x00" + value))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// Recheck after admission rejects: a competing request may have just committed.
+func (c *CreateExecution) replayAfterRejection(ctx context.Context, owner, key, fingerprint string, rejection error) (CreationResult, error) {
+	if key == "" {
+		return CreationResult{}, rejection
+	}
+	existing, err := c.Store.FindReplay(ctx, owner, key)
+	if errors.Is(err, domain.ErrNotFound) {
+		return CreationResult{}, rejection
+	}
+	if err != nil {
+		return CreationResult{}, err
+	}
+	if existing.Fingerprint != fingerprint {
+		return CreationResult{}, domain.ErrIdempotencyConflict
+	}
+	return CreationResult{Execution: existing, Replay: true}, nil
 }

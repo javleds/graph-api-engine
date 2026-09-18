@@ -43,7 +43,7 @@ func (f *ExecutionFinalizer) Finish(ctx context.Context, c d.ExecutionCompletion
 		return err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `UPDATE executions SET status=?,error_json=?,error_report_json=?,progress_json=?,finished_at=?,result_expires_at=?,version=version+1 WHERE id=? AND version=? AND status IN ('pending','running')`, c.Status, prepared.failure, prepared.report, prepared.progress, c.FinishedAt.UnixMilli(), prepared.expires, c.ID, c.ExpectedVersion)
+	result, err := tx.ExecContext(ctx, `UPDATE executions SET status=?,error_json=?,error_report_json=?,progress_json=?,finished_at=?,result_expires_at=?,version=version+1 WHERE id=? AND version=? AND (status='running' OR (status='pending' AND ?='failed'))`, c.Status, prepared.failure, prepared.report, prepared.progress, c.FinishedAt.UnixMilli(), prepared.expires, c.ID, c.ExpectedVersion, c.Status)
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,10 @@ func TestAtomicFinalizationAndExpiration(t *testing.T) {
 	if _, _, err := store.Create(ctx, snapshot); err != nil {
 		t.Fatal(err)
 	}
-	c := d.ExecutionCompletion{ID: snapshot.ID, ExpectedVersion: 0, Status: d.Completed, Report: d.EmptyReport(), Data: []byte(`{"items":[]}`), FinishedAt: time.Now(), ResultExpiresAt: time.Now().Add(time.Hour), Delivery: &d.WebhookRecord{ID: "delivery", EventID: "event", Target: []byte("secret-target"), Payload: []byte(`{"eventId":"event"}`), DeadlineAt: time.Now().Add(time.Hour)}}
+	if ok, err := store.Claim(ctx, snapshot.ID, "instance", 0, time.Now()); err != nil || !ok {
+		t.Fatalf("claim: %v", err)
+	}
+	c := d.ExecutionCompletion{ID: snapshot.ID, ExpectedVersion: 1, Status: d.Completed, Report: d.EmptyReport(), Data: []byte(`{"items":[]}`), FinishedAt: time.Now(), ResultExpiresAt: time.Now().Add(time.Hour), Delivery: &d.WebhookRecord{ID: "delivery", EventID: "event", Target: []byte("secret-target"), Payload: []byte(`{"eventId":"event"}`), DeadlineAt: time.Now().Add(time.Hour)}}
 	finalizer := NewExecutionFinalizer(store)
 	if _, err := db.Exec(`CREATE TRIGGER reject_delivery BEFORE INSERT ON webhook_deliveries BEGIN SELECT RAISE(ABORT,'simulated disk failure'); END`); err != nil {
 		t.Fatal(err)
@@ -24,7 +27,7 @@ func TestAtomicFinalizationAndExpiration(t *testing.T) {
 		t.Fatal("injected failure not surfaced")
 	}
 	execution, err := store.Read(ctx, "owner", snapshot.ID)
-	if err != nil || execution.Status != d.Pending {
+	if err != nil || execution.Status != d.Running {
 		t.Fatalf("partial transition: %v %v", execution.Status, err)
 	}
 	var results int
