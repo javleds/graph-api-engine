@@ -3,6 +3,8 @@ package domain
 import "time"
 
 type ExecutionSnapshot struct {
+	APIVersion         int
+	DeadlineAt         time.Time
 	ID                 ExecutionID
 	OwnerID            string
 	Fingerprint        string

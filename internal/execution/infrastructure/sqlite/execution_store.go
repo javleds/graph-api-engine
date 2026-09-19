@@ -14,6 +14,7 @@ import (
 )
 
 type ExecutionStore struct {
+	BeforeV2Write        func(context.Context) error
 	db                   *sql.DB
 	protector            securityports.SecretProtector
 	maxPendingDeliveries int
@@ -28,6 +29,12 @@ func NewExecutionStore(db *sql.DB, protector securityports.SecretProtector, maxi
 }
 
 func (s *ExecutionStore) Create(ctx context.Context, snapshot d.ExecutionSnapshot) (d.Execution, bool, error) {
+	if snapshot.APIVersion == 0 {
+		snapshot.APIVersion = 1
+	}
+	if snapshot.APIVersion != 1 && snapshot.APIVersion != 2 {
+		return d.Execution{}, false, errors.New("unsupported execution protocol")
+	}
 	blob, err := s.seal(ctx, "executions", snapshot.OwnerID, string(snapshot.ID), snapshot.Definition)
 	if err != nil {
 		return d.Execution{}, false, err
@@ -63,9 +70,14 @@ func (s *ExecutionStore) Create(ctx context.Context, snapshot d.ExecutionSnapsho
 	if snapshot.IdempotencyKeyHash != "" {
 		key = snapshot.IdempotencyKeyHash
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO executions(id,owner_id,status,definition_version,webhook_enabled,request_fingerprint,idempotency_key_hash,snapshot_blob,created_at,metadata_expires_at) VALUES(?,?,'pending',1,?,?,?,?,?,?)`, snapshot.ID, snapshot.OwnerID, snapshot.WebhookEnabled, snapshot.Fingerprint, key, blob, snapshot.CreatedAt.UnixMilli(), snapshot.MetadataExpiresAt.UnixMilli())
+	_, err = tx.ExecContext(ctx, `INSERT INTO executions(id,owner_id,status,definition_version,webhook_enabled,request_fingerprint,idempotency_key_hash,snapshot_blob,created_at,metadata_expires_at,api_version) VALUES(?,?,'pending',1,?,?,?,?,?,?,?)`, snapshot.ID, snapshot.OwnerID, snapshot.WebhookEnabled, snapshot.Fingerprint, key, blob, snapshot.CreatedAt.UnixMilli(), snapshot.MetadataExpiresAt.UnixMilli(), snapshot.APIVersion)
 	if err != nil {
 		return d.Execution{}, false, err
+	}
+	if snapshot.APIVersion == 2 {
+		if err := s.initializeV2(ctx, tx, snapshot.ID, snapshot.DeadlineAt); err != nil {
+			return d.Execution{}, false, err
+		}
 	}
 	execution, err := scanExecution(tx.QueryRowContext(ctx, executionSelect+" WHERE id=?", snapshot.ID))
 	if err != nil {
@@ -100,7 +112,7 @@ func (s *ExecutionStore) Load(ctx context.Context, id d.ExecutionID) (d.Executio
 	if err != nil {
 		return d.ExecutionSnapshot{}, execution, err
 	}
-	return d.ExecutionSnapshot{ID: id, OwnerID: execution.OwnerID, Fingerprint: fingerprint, IdempotencyKeyHash: key.String, Definition: plaintext, WebhookEnabled: execution.WebhookEnabled, CreatedAt: execution.CreatedAt, MetadataExpiresAt: time.UnixMilli(expires).UTC()}, execution, nil
+	return d.ExecutionSnapshot{APIVersion: execution.APIVersion, ID: id, OwnerID: execution.OwnerID, Fingerprint: fingerprint, IdempotencyKeyHash: key.String, Definition: plaintext, WebhookEnabled: execution.WebhookEnabled, CreatedAt: execution.CreatedAt, MetadataExpiresAt: time.UnixMilli(expires).UTC()}, execution, nil
 }
 
 func (s *ExecutionStore) Claim(ctx context.Context, id d.ExecutionID, instance string, version int64, now time.Time) (bool, error) {
@@ -121,6 +133,9 @@ func (s *ExecutionStore) ReadResult(ctx context.Context, owner string, id d.Exec
 	execution, err := scanExecution(tx.QueryRowContext(ctx, executionSelect+" WHERE owner_id=? AND id=?", owner, id))
 	if err != nil {
 		return execution, nil, err
+	}
+	if execution.APIVersion == 2 {
+		return execution, nil, d.ErrNotFound
 	}
 	if execution.Status == d.Failed {
 		return execution, nil, d.ErrExecutionFailed
@@ -160,7 +175,7 @@ func (s *ExecutionStore) open(ctx context.Context, table, owner, id string, data
 	return s.protector.Open(ctx, string(purpose), blob)
 }
 
-const executionSelect = `SELECT id,owner_id,request_fingerprint,status,version,created_at,started_at,finished_at,result_expires_at,progress_json,error_json,error_report_json,webhook_enabled FROM executions`
+const executionSelect = `SELECT id,owner_id,request_fingerprint,status,version,created_at,started_at,finished_at,result_expires_at,progress_json,error_json,error_report_json,webhook_enabled,api_version FROM executions`
 
 func scanExecution(row *sql.Row) (d.Execution, error) {
 	var execution d.Execution
@@ -168,7 +183,7 @@ func scanExecution(row *sql.Row) (d.Execution, error) {
 	var started, finished, expires sql.NullInt64
 	var progress, report string
 	var failure sql.NullString
-	err := row.Scan(&execution.ID, &execution.OwnerID, &execution.Fingerprint, &execution.Status, &execution.Version, &created, &started, &finished, &expires, &progress, &failure, &report, &execution.WebhookEnabled)
+	err := row.Scan(&execution.ID, &execution.OwnerID, &execution.Fingerprint, &execution.Status, &execution.Version, &created, &started, &finished, &expires, &progress, &failure, &report, &execution.WebhookEnabled, &execution.APIVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return execution, d.ErrNotFound
 	}
@@ -231,6 +246,9 @@ func (s *ExecutionStore) Purge(ctx context.Context, now time.Time, limit int) er
 		return err
 	}
 	defer tx.Rollback()
+	if err := s.purgeV2(ctx, tx, now, limit); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM execution_results WHERE execution_id IN (SELECT execution_id FROM execution_results WHERE expires_at<=? ORDER BY expires_at LIMIT ?)`, now.UnixMilli(), limit); err != nil {
 		return err
 	}

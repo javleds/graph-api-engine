@@ -3,6 +3,7 @@ package domain
 import "time"
 
 type Execution struct {
+	APIVersion      int
 	ID              ExecutionID
 	OwnerID         string
 	Fingerprint     string
