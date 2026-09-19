@@ -38,7 +38,7 @@ func Register(mux *http.ServeMux, guard func(http.ResponseWriter, *http.Request)
 			http.NotFound(w, r)
 			return
 		}
-		body, err := assets.ReadFile("assets/web/assets/" + name)
+		body, err := assets.ReadFile("assets/web/" + name)
 		if err != nil {
 			http.NotFound(w, r)
 			return
