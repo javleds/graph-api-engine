@@ -134,6 +134,9 @@ func TestYAMLInterpolationPreservesScalarTypes(t *testing.T) {
 	if _, err := decodeYAML([]byte("http:\n  address: $"+"{MISSING}\n"), func(string) (string, bool) { return "", false }); err == nil {
 		t.Fatal("missing environment variable accepted")
 	}
+	if _, err := decodeYAML([]byte("http:\n  address: $"+"{EMPTY}\n"), func(string) (string, bool) { return "", true }); err == nil {
+		t.Fatal("empty environment variable accepted")
+	}
 }
 
 func TestLoadRejectsJSONConfiguration(t *testing.T) {
@@ -143,6 +146,15 @@ func TestLoadRejectsJSONConfiguration(t *testing.T) {
 	}
 	if _, err := Load(path); err == nil {
 		t.Fatal("JSON configuration accepted")
+	}
+}
+func TestLoadAcceptsYAMLExtension(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, example(t), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err != nil {
+		t.Fatal(err)
 	}
 }
 
