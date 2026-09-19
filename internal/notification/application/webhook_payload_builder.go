@@ -46,6 +46,13 @@ func (b *WebhookPayloadBuilder) PrepareCompletion(ctx context.Context, snapshot 
 	if err != nil {
 		return err
 	}
+	if snapshot.APIVersion == 2 {
+		completion.APIVersion = 2
+		completion.ExecutionBasePath = "/v2/executions"
+		if snapshot.OwnerID == "system:playground" {
+			completion.ExecutionBasePath = "/playground/api/v2/executions"
+		}
+	}
 	payload, err := b.Build(eventID, *compiled.Webhook, *completion)
 	if err != nil {
 		return err
@@ -63,7 +70,7 @@ func (b *WebhookPayloadBuilder) PrepareCompletion(ctx context.Context, snapshot 
 }
 func (b *WebhookPayloadBuilder) Build(eventID string, target definition.Webhook, completion execution.ExecutionCompletion) ([]byte, error) {
 	payload := b.basePayload(eventID, completion)
-	if target.Payload == "result" && completion.Status != execution.Failed {
+	if completion.APIVersion != 2 && target.Payload == "result" && completion.Status != execution.Failed {
 		if !json.Valid(completion.Data) {
 			return nil, errors.New("webhook result is not valid JSON")
 		}
@@ -104,7 +111,20 @@ func (b *WebhookPayloadBuilder) Build(eventID string, target definition.Webhook,
 	return encoded, nil
 }
 func (b *WebhookPayloadBuilder) basePayload(eventID string, completion execution.ExecutionCompletion) domain.WebhookPayload {
-	self := strings.TrimRight(b.PublicBaseURL, "/") + "/v1/executions/" + string(completion.ID)
+	prefix := "/v1/executions"
+	if completion.APIVersion == 2 {
+		prefix = completion.ExecutionBasePath
+		if prefix == "" {
+			prefix = "/v2/executions"
+		}
+	}
+	self := strings.TrimRight(b.PublicBaseURL, "/") + prefix + "/" + string(completion.ID)
+	links := domain.WebhookLinks{Self: self, Result: self + "/result"}
+	var expiry *time.Time
+	if completion.APIVersion == 2 {
+		links = domain.WebhookLinks{Self: self, Chunks: self + "/chunks", Tree: self + "/tree", Export: self + "/export"}
+		expiry = &completion.ResultExpiresAt
+	}
 	details := completion.Report.Errors
 	if details == nil {
 		details = []execution.NodeFailure{}
@@ -113,7 +133,7 @@ func (b *WebhookPayloadBuilder) basePayload(eventID string, completion execution
 	if roots == nil {
 		roots = []execution.RootOutcome{}
 	}
-	return domain.WebhookPayload{EventID: eventID, Type: "execution." + string(completion.Status), ID: completion.ID, Status: completion.Status, OccurredAt: completion.FinishedAt, ErrorsIncluded: true, Errors: details, ErrorSummary: completion.Report.ErrorSummary, Roots: roots, Error: completion.Error, Links: domain.WebhookLinks{Self: self, Result: self + "/result"}}
+	return domain.WebhookPayload{EventID: eventID, Type: "execution." + string(completion.Status), ID: completion.ID, Status: completion.Status, OccurredAt: completion.FinishedAt, ErrorsIncluded: true, Errors: details, ErrorSummary: completion.Report.ErrorSummary, Roots: roots, Error: completion.Error, Links: links, LastSequence: completion.LastSequence, ResultExpiresAt: expiry}
 }
 func (b *WebhookPayloadBuilder) maximum() int {
 	if b.MaxPayloadBytes <= 0 {

@@ -7,6 +7,8 @@ import (
 )
 
 type WebhookPayload struct {
+	LastSequence        string                      `json:"lastSequence,omitempty"`
+	ResultExpiresAt     *time.Time                  `json:"resultExpiresAt,omitempty"`
 	EventID             string                      `json:"eventId"`
 	Type                string                      `json:"type"`
 	ID                  execution.ExecutionID       `json:"id"`

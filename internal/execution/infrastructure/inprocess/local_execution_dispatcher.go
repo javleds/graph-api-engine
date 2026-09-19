@@ -61,7 +61,11 @@ func (d *LocalExecutionDispatcher) run(id domain.ExecutionID) {
 			d.OnFailure(id, fmt.Errorf("INTERNAL_WORKER_PANIC"))
 		}
 	}()
-	ctx, cancel := context.WithTimeout(d.ctx, d.timeout)
+	ctx, cancel := context.WithCancel(d.ctx)
+	if d.timeout > 0 {
+		cancel()
+		ctx, cancel = context.WithTimeout(d.ctx, d.timeout)
+	}
 	defer cancel()
 	if err := d.runner.Run(ctx, id); err != nil && d.OnFailure != nil {
 		d.OnFailure(id, err)

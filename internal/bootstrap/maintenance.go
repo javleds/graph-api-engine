@@ -12,6 +12,10 @@ func (a *Application) checkCapacity(ctx context.Context) error {
 	if !a.ready.Load() {
 		return domain.StorageError("ENGINE_BUSY")
 	}
+	return a.checkDiskCapacity(ctx)
+}
+
+func (a *Application) checkDiskCapacity(ctx context.Context) error {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(filepath.Dir(a.Config.Storage.Path), &stat); err != nil {
 		return domain.StorageError("STORAGE_UNAVAILABLE")

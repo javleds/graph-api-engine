@@ -46,6 +46,7 @@ func (a *Application) openStorage(ctx context.Context) (*security.AESGCMProtecto
 		return nil, nil, err
 	}
 	a.Store = executionsql.NewExecutionStore(a.EngineDB, protector, a.Config.Webhooks.MaxPendingDeliveries)
+	a.Store.BeforeV2Write = a.checkDiskCapacity
 	var version string
 	if err = a.EngineDB.QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&version); err != nil {
 		return nil, nil, err

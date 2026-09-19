@@ -39,6 +39,12 @@ func ValidateCompletion(c ExecutionCompletion) error {
 	if c.Status == CompletedWithErrors && summary.Total == 0 {
 		return errors.New("partial completion requires a final diagnostic")
 	}
+	if c.APIVersion == 2 {
+		if len(c.Data) != 0 {
+			return errors.New("v2 completion must not contain an assembled result")
+		}
+		return nil
+	}
 	var data map[string]json.RawMessage
 	if err := json.Unmarshal(c.Data, &data); err != nil || data == nil {
 		return errors.New("terminal result must be a JSON object")

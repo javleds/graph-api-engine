@@ -35,7 +35,10 @@ func prepareCompletion(ctx context.Context, s *ExecutionStore, owner string, c d
 		}
 		p.failure = string(failure)
 	}
-	if c.Status != d.Failed {
+	if c.APIVersion == 2 {
+		p.expires = c.ResultExpiresAt.UnixMilli()
+	}
+	if c.Status != d.Failed && c.APIVersion != 2 {
 		p.expires = c.ResultExpiresAt.UnixMilli()
 		p.result, err = s.seal(ctx, "execution_results", owner, string(c.ID), c.Data)
 		if err != nil {

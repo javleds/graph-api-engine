@@ -47,7 +47,12 @@ func (f *ExecutionFinalizer) Finish(ctx context.Context, c d.ExecutionCompletion
 	if count != 1 {
 		return d.ErrVersionConflict
 	}
-	if c.Status != d.Failed {
+	if c.APIVersion == 2 {
+		if err := f.store.appendV2Terminal(ctx, tx, snapshot.OwnerID, c); err != nil {
+			return err
+		}
+	}
+	if c.Status != d.Failed && c.APIVersion != 2 {
 		hash := sha256.Sum256(c.Data)
 		_, err = tx.ExecContext(ctx, `INSERT INTO execution_results(execution_id,result_blob,plaintext_size,sha256,created_at,expires_at) VALUES(?,?,?,?,?,?)`, c.ID, prepared.result, len(c.Data), hex.EncodeToString(hash[:]), c.FinishedAt.UnixMilli(), c.ResultExpiresAt.UnixMilli())
 		if err != nil {

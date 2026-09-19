@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/javleds/api-engine/internal/execution/application/ports"
 	"github.com/javleds/api-engine/internal/execution/domain"
+	"strconv"
 	"time"
 )
 
@@ -24,6 +25,25 @@ func (f *FinalizeExecution) Finish(ctx context.Context, completion domain.Execut
 	}
 	if existing.Status.Terminal() {
 		return domain.ErrVersionConflict
+	}
+	completion.APIVersion = existing.APIVersion
+	if existing.APIVersion == 2 {
+		store, ok := f.Store.(ports.V2Store)
+		if !ok {
+			return errors.New("v2 store is required")
+		}
+		state, err := store.ReadV2State(ctx, completion.ID)
+		if err != nil {
+			return err
+		}
+		sequence, err := strconv.ParseInt(state.LastSequence, 10, 64)
+		if err != nil {
+			return err
+		}
+		completion.LastSequence = strconv.FormatInt(sequence+1, 10)
+		if completion.ResultExpiresAt.IsZero() {
+			completion.ResultExpiresAt = completion.FinishedAt.Add(7 * 24 * time.Hour)
+		}
 	}
 	if completion.Report.Errors == nil {
 		completion.Report.Errors = []domain.NodeFailure{}
