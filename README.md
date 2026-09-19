@@ -36,6 +36,19 @@ HTTPS es obligatorio salvo desarrollo explícito. Para pruebas locales, habilita
 
 `serve` valida configuración y claves, adquiere el lock de instancia, migra y reconcilia el estado antes de aceptar tráfico. No ejecutar varios procesos sobre el mismo directorio. `ENGINE_CONFIG`, `ENGINE_HTTP_ADDRESS`, `ENGINE_HTTP_PUBLIC_BASE_URL` y `ENGINE_LOG_LEVEL` son los overrides admitidos. `--config` prevalece sobre `ENGINE_CONFIG`.
 
+### Orígenes abiertos en desarrollo local
+
+Para probar APIs y webhooks públicos sin registrar cada dominio, configurar ambos campos en `security.egress`:
+
+```json
+"allowHTTPForDevelopment": true,
+"allowAnyOriginForDevelopment": true
+```
+
+`allowAnyOriginForDevelopment` es `false` por defecto y exige el modo de desarrollo existente (`allowHTTPForDevelopment`). Cuando está activo, las listas de origins dejan de restringir destinos y pueden estar vacías; la validación del playground y los transportes usan la misma política. En producción conservar ambos flags en `false` y configurar las allowlists.
+
+Esta opción abre orígenes, no la red privada: localhost, redes privadas y destinos de metadata mantienen sus controles. Para un proveedor/webhook local, configurar también el CIDR concreto en `allowedPrivateCIDRs`. Reiniciar el servicio tras cambiar la configuración.
+
 ## Uso HTTP
 
 Consulta la [guía para construir el JSON](docs/api-request-guide.md), el [schema aceptado](api_request_schema.json) y el [ejemplo completo de varias ramas](contracts/examples/commerce_graph.json).

@@ -43,8 +43,11 @@ func validateSecurity(security SecurityConfig) error {
 	if security.AuthenticationEnabled && security.PrincipalsFile == "" {
 		return fmt.Errorf("principals file is required")
 	}
+	if security.Egress.AllowAnyOriginForDevelopment && !security.Egress.AllowHTTPForDevelopment {
+		return fmt.Errorf("allowAnyOriginForDevelopment requires allowHTTPForDevelopment")
+	}
 	for _, origins := range [][]string{security.Egress.UpstreamAllowedOrigins, security.Egress.WebhookAllowedOrigins} {
-		if len(origins) == 0 {
+		if len(origins) == 0 && !security.Egress.AllowAnyOriginForDevelopment {
 			return fmt.Errorf("explicit upstream and webhook origin allowlists are required")
 		}
 		if err := validateOrigins(origins, security.Egress.AllowHTTPForDevelopment); err != nil {

@@ -2806,6 +2806,8 @@ Permitir modo sin autenticación solo para desarrollo local explícito y con lis
 
 ### 20.2. Egress / SSRF
 
+Extensión para desarrollo local: `security.egress.allowAnyOriginForDevelopment` (default `false`) permite omitir la pertenencia a las listas de origins tanto en proveedor como webhook. Requiere `allowHTTPForDevelopment: true`; no deshabilita validación de URL, controles de IP/SSRF ni restricciones de redirects. En ese modo las listas pueden estar vacías. En producción conservar ambos flags en `false`. Véase [004-local-egress-origins.md](004-local-egress-origins.md).
+
 El engine recibe destinos HTTP configurables y por tanto debe tratarse como una superficie SSRF. Aplicar allowlists y validación de destino a proveedor **y webhook**, además de evitar redirects que cambien el objetivo. [R07]
 
 Política obligatoria:
@@ -2963,7 +2965,8 @@ El formato es JSON. Precedencia: defaults documentados, archivo, variables de en
       "upstreamAllowedOrigins": ["https://example.com"],
       "webhookAllowedOrigins": ["https://consumer.example.com"],
       "allowedPrivateCIDRs": [],
-      "allowHTTPForDevelopment": false
+      "allowHTTPForDevelopment": false,
+      "allowAnyOriginForDevelopment": false
     }
   },
   "maintenance": {

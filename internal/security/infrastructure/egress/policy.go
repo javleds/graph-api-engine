@@ -9,13 +9,17 @@ import (
 )
 
 type Policy struct {
-	origins      map[string]bool
-	privateCIDRs []netip.Prefix
-	allowHTTP    bool
+	allowAnyOrigin bool
+	origins        map[string]bool
+	privateCIDRs   []netip.Prefix
+	allowHTTP      bool
 }
 
-func NewPolicy(origins, privateCIDRs []string, allowHTTP bool) (*Policy, error) {
-	p := &Policy{origins: make(map[string]bool), allowHTTP: allowHTTP}
+func NewPolicy(origins, privateCIDRs []string, allowHTTP, allowAnyOrigin bool) (*Policy, error) {
+	if allowAnyOrigin && !allowHTTP {
+		return nil, errors.New("open origins require development mode")
+	}
+	p := &Policy{allowAnyOrigin: allowAnyOrigin, origins: make(map[string]bool), allowHTTP: allowHTTP}
 	for _, raw := range origins {
 		u, err := url.Parse(raw)
 		if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
@@ -41,7 +45,7 @@ func (p *Policy) ValidateURL(raw string) error {
 	if err != nil || u.Host == "" || u.User != nil || u.Fragment != "" || (u.Scheme != "https" && !(p.allowHTTP && u.Scheme == "http")) {
 		return errors.New("EGRESS_DENIED")
 	}
-	if !p.origins[origin(u)] {
+	if !p.allowAnyOrigin && !p.origins[origin(u)] {
 		return errors.New("EGRESS_DENIED")
 	}
 	return nil

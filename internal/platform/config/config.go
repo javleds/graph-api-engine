@@ -83,5 +83,5 @@ func (c *Config) Validate() error {
 	return nil
 }
 func (c Config) DefinitionLimits() application.ValidationLimits {
-	return application.ValidationLimits{MaxDefinitionDepth: c.Executions.MaxDefinitionDepth, MaxDefinitionNodes: c.Executions.MaxDefinitionNodes, MaxChildrenPerNode: c.Executions.MaxChildrenPerNode, MaxRootCalls: c.Executions.MaxRootCalls, HTTPConcurrency: c.Fetch.MaxConcurrentHTTPRequests, MaxTTL: c.Cache.MaxTTL.Value(), AllowHTTPForDevelopment: c.Security.Egress.AllowHTTPForDevelopment, UpstreamAllowedOrigins: append([]string(nil), c.Security.Egress.UpstreamAllowedOrigins...), WebhookAllowedOrigins: append([]string(nil), c.Security.Egress.WebhookAllowedOrigins...)}
+	return application.ValidationLimits{MaxDefinitionDepth: c.Executions.MaxDefinitionDepth, MaxDefinitionNodes: c.Executions.MaxDefinitionNodes, MaxChildrenPerNode: c.Executions.MaxChildrenPerNode, MaxRootCalls: c.Executions.MaxRootCalls, HTTPConcurrency: c.Fetch.MaxConcurrentHTTPRequests, MaxTTL: c.Cache.MaxTTL.Value(), AllowHTTPForDevelopment: c.Security.Egress.AllowHTTPForDevelopment, AllowAnyOriginForDevelopment: c.Security.Egress.AllowAnyOriginForDevelopment, UpstreamAllowedOrigins: append([]string(nil), c.Security.Egress.UpstreamAllowedOrigins...), WebhookAllowedOrigins: append([]string(nil), c.Security.Egress.WebhookAllowedOrigins...)}
 }

@@ -108,7 +108,8 @@
       "upstreamAllowedOrigins": [],
       "webhookAllowedOrigins": [],
       "allowedPrivateCIDRs": [],
-      "allowHTTPForDevelopment": false
+      "allowHTTPForDevelopment": false,
+      "allowAnyOriginForDevelopment": false
     }
   },
   "maintenance": {

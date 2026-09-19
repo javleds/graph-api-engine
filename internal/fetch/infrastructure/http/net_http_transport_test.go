@@ -21,7 +21,7 @@ func TestTransportBoundsBodyAndDoesNotRedirect(t *testing.T) {
 		_, _ = w.Write([]byte(`{"oversized":true}`))
 	}))
 	defer server.Close()
-	policy, err := egress.NewPolicy([]string{server.URL}, []string{"127.0.0.0/8"}, true)
+	policy, err := egress.NewPolicy([]string{server.URL}, []string{"127.0.0.0/8"}, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestTransportBoundsBodyAndDoesNotRedirect(t *testing.T) {
 }
 
 func TestResolvedPrivateAddressReturnsEgressDenied(t *testing.T) {
-	policy, err := egress.NewPolicy([]string{"https://127.0.0.1"}, nil, false)
+	policy, err := egress.NewPolicy([]string{"https://127.0.0.1"}, nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

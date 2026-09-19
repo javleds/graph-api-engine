@@ -18,7 +18,7 @@ import (
 
 func (a *Application) buildFetch(protector securityports.SecretProtector, identity []byte) (*fetchapp.CachingFetchService, error) {
 	cfg := a.Config
-	policy, err := egress.NewPolicy(cfg.Security.Egress.UpstreamAllowedOrigins, cfg.Security.Egress.AllowedPrivateCIDRs, cfg.Security.Egress.AllowHTTPForDevelopment)
+	policy, err := egress.NewPolicy(cfg.Security.Egress.UpstreamAllowedOrigins, cfg.Security.Egress.AllowedPrivateCIDRs, cfg.Security.Egress.AllowHTTPForDevelopment, cfg.Security.Egress.AllowAnyOriginForDevelopment)
 	if err != nil {
 		return nil, err
 	}

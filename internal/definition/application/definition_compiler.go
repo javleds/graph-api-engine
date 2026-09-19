@@ -15,7 +15,7 @@ func Compile(def domain.CompiledDefinition, limits ValidationLimits) (*domain.Co
 	if len(def.Roots) == 0 || len(def.Roots) > limits.MaxRootCalls {
 		return nil, domain.Invalid("/definition/calls", "root count exceeds limits")
 	}
-	if err := validateURL(def.API.BaseURL, true, limits.AllowHTTPForDevelopment, limits.UpstreamAllowedOrigins); err != nil {
+	if err := validateURL(def.API.BaseURL, true, limits.AllowHTTPForDevelopment, limits.AllowAnyOriginForDevelopment, limits.UpstreamAllowedOrigins); err != nil {
 		return nil, err
 	}
 	if err := validateHeaders(def.API.Headers, def.API.Auth, false); err != nil {

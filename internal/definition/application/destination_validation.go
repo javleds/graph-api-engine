@@ -9,7 +9,7 @@ import (
 	"github.com/javleds/api-engine/internal/definition/domain"
 )
 
-func validateURL(raw string, base, allowHTTP bool, origins []string) error {
+func validateURL(raw string, base, allowHTTP, allowAnyOrigin bool, origins []string) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Hostname() == "" || u.User != nil || u.Fragment != "" || strings.Contains(raw, "#") || (!allowHTTP && u.Scheme != "https") || (u.Scheme != "https" && u.Scheme != "http") {
 		return domain.Invalid("/url", "destination must be an absolute permitted HTTP URL")
@@ -20,7 +20,7 @@ func validateURL(raw string, base, allowHTTP bool, origins []string) error {
 	if strings.IndexFunc(raw, unicode.IsControl) >= 0 {
 		return domain.Invalid("/url", "control character in URL")
 	}
-	if len(origins) > 0 {
+	if len(origins) > 0 && !(allowHTTP && allowAnyOrigin) {
 		origin := strings.ToLower(u.Scheme + "://" + u.Host)
 		found := false
 		for _, allowed := range origins {
@@ -83,7 +83,7 @@ func reservedHeader(name string, webhook bool) bool {
 	return webhook && (name == "content-type" || name == "x-engine-event-id" || name == "x-engine-timestamp" || name == "x-engine-signature")
 }
 func validateWebhook(w *domain.Webhook, limits ValidationLimits) error {
-	if err := validateURL(w.URL, false, limits.AllowHTTPForDevelopment, limits.WebhookAllowedOrigins); err != nil {
+	if err := validateURL(w.URL, false, limits.AllowHTTPForDevelopment, limits.AllowAnyOriginForDevelopment, limits.WebhookAllowedOrigins); err != nil {
 		return err
 	}
 	if w.Method == "" {
