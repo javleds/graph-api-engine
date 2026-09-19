@@ -7,8 +7,30 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - engine-data:/data
-      - ./config/config.json:/etc/api-engine/config.json:ro
-      - ./secrets:/run/secrets:ro
+      - type: bind
+        source: ./config/config.json
+        target: /etc/api-engine/config.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets/engine-identity-key
+        target: /run/secrets/engine-identity-key
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets/engine-encryption-key
+        target: /run/secrets/engine-encryption-key
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets/engine-principals.json
+        target: /run/secrets/engine-principals.json
+        read_only: true
+        bind:
+          create_host_path: false
     read_only: true
     tmpfs:
       - /tmp:uid=65532,gid=65532,mode=0700

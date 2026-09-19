@@ -87,6 +87,10 @@ docker compose up -d api-engine
 docker compose logs -f api-engine
 ```
 
+Compose monta los tres archivos `secrets/engine-identity-key`, `secrets/engine-encryption-key` y `secrets/engine-principals.json` individualmente. Mantener el directorio host `secrets` con permisos `0700` y esos archivos con lectura para el UID del contenedor (`0644` dentro del directorio protegido es suficiente). No se monta un token Bearer en texto plano. Si se cambian nombres o se agregan claves para rotación, actualizar los mounts junto con la configuración.
+
+Los bind mounts usan `create_host_path: false`: si falta un archivo, Compose falla de inmediato en vez de crear un directorio con nombre `.json`. Si un arranque anterior creó `config/config.json` como directorio, detener el servicio, conservar cualquier contenido existente y reemplazar el directorio vacío por el archivo de configuración antes de recrearlo.
+
 El runtime usa UID/GID `65532`, certificados CA y filesystem de solo lectura. `/data` pertenece a ese UID y contiene `engine.db` y `cache.db`; `/tmp` es temporal. Preparar permisos de lectura de configuración y secretos para ese UID. El volumen nuevo hereda el ownership de `/data`; para volúmenes existentes, corregirlo antes del arranque.
 
 Compose publica únicamente `127.0.0.1:8080`. Para exposición remota, agregar terminación TLS administrada y reglas de red. El servicio necesita salida a los origins autorizados; no depende de Redis ni de un broker. Eliminar el volumen elimina ejecuciones, resultados, notificaciones y caché. La política `restart` no reanuda árboles interrumpidos.
