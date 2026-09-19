@@ -86,3 +86,9 @@ Sin la última línea, la descarga está incompleta y debe repetirse. Un export 
 ## Webhook
 
 V2 emite un webhook terminal con firma/reintentos existentes, estado, resumen, `lastSequence`, `resultExpiresAt` y links de consulta. No envía un webhook por chunk ni incluye el resultado completo. Usar los links con las credenciales del mismo owner. Los jobs del playground enlazan sus rutas locales `/playground/api/v2`.
+
+## Abortar el árbol
+
+`POST /v2/executions/{id}/cancel` solicita la cancelación en Go; no requiere body y exige permisos `executions:create` y `executions:read` del mismo owner. Devuelve 200 con `{id,status,error,links}`. Una cancelación confirmada usa `status: "failed"` y `error.code: "EXECUTION_CANCELLED"`, con terminal y webhook durables. Los chunks previos siguen disponibles hasta su expiración. El job no se reanuda tras reiniciar.
+
+La operación es idempotente: si la finalización natural ganó la carrera, devuelve ese terminal sin sobrescribirlo. Un error de persistencia devuelve 503 y no debe interpretarse como cancelación confirmada. El playground ofrece **Abortar ejecución**, separado de **Detener seguimiento**. No se pueden deshacer peticiones ya procesadas por proveedores; las operaciones compartidas continúan para otros consumidores.

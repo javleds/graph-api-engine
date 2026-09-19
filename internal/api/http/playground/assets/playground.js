@@ -9,6 +9,7 @@ const elements = Object.fromEntries(
     "execute",
     "clear",
     "stop",
+    "cancel-execution",
     "resume",
     "execution-id",
     "status",
@@ -77,6 +78,8 @@ let controller = null;
 let timer = null;
 let tracking = false;
 let currentID = "";
+let currentStatus = "";
+let cancelling = false;
 let rawResponse = null;
 let treeAvailable = false;
 const exchanges = new Map();
@@ -93,6 +96,14 @@ function setTracking(active, text) {
   elements.stop.disabled = !active;
   if ($("refresh-webhook")) $("refresh-webhook").disabled = active;
   elements["tracking-state"].textContent = text;
+  updateCancelButton();
+}
+function updateCancelButton() {
+  elements["cancel-execution"].disabled =
+    cancelling || !currentID || !["pending", "running"].includes(currentStatus);
+  elements["cancel-execution"].textContent = cancelling
+    ? "Abortando ejecución…"
+    : "Abortar ejecución";
 }
 function beginSession() {
   generation += 1;
@@ -100,6 +111,8 @@ function beginSession() {
   v2Viewer.cancel();
   clearTimeout(timer);
   controller = new AbortController();
+  cancelling = false;
+  updateCancelButton();
   return generation;
 }
 function stopTracking() {
@@ -243,8 +256,12 @@ function formatDate(value) {
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString("es");
 }
 function renderStatus(status) {
+  currentStatus = status.status ?? "";
   elements.status.textContent =
-    labels[status.status] ?? `? ${status.status ?? "Estado desconocido"}`;
+    status.status === "failed" && status.error?.code === "EXECUTION_CANCELLED"
+      ? "× Cancelada"
+      : (labels[status.status] ?? `? ${status.status ?? "Estado desconocido"}`);
+  updateCancelButton();
   elements.status.dataset.status = status.status ?? "";
   elements["execution-meta"].replaceChildren();
   addMeta("ID de ejecución", currentID);
@@ -297,6 +314,8 @@ function validExecutionID(id) {
   );
 }
 function clearStatus() {
+  currentStatus = "";
+  updateCancelButton();
   elements["execution-meta"].replaceChildren();
   elements.progress.replaceChildren();
   elements.webhook.hidden = true;
@@ -347,7 +366,12 @@ async function poll(session, loadResult = true) {
       return;
     }
     if (status.status === "failed") {
-      displayResponse(raw, "Ejecución fallida · respuesta terminal de estado");
+      displayResponse(
+        raw,
+        status.error?.code === "EXECUTION_CANCELLED"
+          ? "Ejecución cancelada · respuesta terminal de estado"
+          : "Ejecución fallida · respuesta terminal de estado",
+      );
       setTracking(false, "Ejecución terminada");
       return;
     }
@@ -378,6 +402,30 @@ async function poll(session, loadResult = true) {
     setTracking(true, "Consultando estado cada segundo…");
     timer = setTimeout(() => poll(session, loadResult), 1000);
   } catch (error) {
+    fail(error, session);
+  }
+}
+async function cancelExecution() {
+  if (elements["cancel-execution"].disabled) return;
+  const session = beginSession();
+  cancelling = true;
+  message();
+  setTracking(false, "Solicitando cancelación al servidor…");
+  try {
+    const raw = await request(
+      "cancel",
+      "Cancelación de ejecución",
+      `${apiBase()}/${encodeURIComponent(currentID)}/cancel`,
+      { method: "POST" },
+      session,
+    );
+    renderStatus(parsedObject(raw));
+    cancelling = false;
+    setTracking(true, "Consultando cierre de ejecución…");
+    await poll(session);
+  } catch (error) {
+    if (session !== generation || error.name === "AbortError") return;
+    cancelling = false;
     fail(error, session);
   }
 }
@@ -412,6 +460,7 @@ async function execute() {
   }
   const session = beginSession();
   currentID = "";
+  currentStatus = "";
   elements["execution-id"].value = "";
   resetResponse();
   elements["execution-meta"].replaceChildren();
@@ -461,6 +510,7 @@ $("example").addEventListener("click", () => {
 });
 elements.execute.addEventListener("click", execute);
 elements.stop.addEventListener("click", stopTracking);
+elements["cancel-execution"].addEventListener("click", cancelExecution);
 $("resume-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const id = elements["execution-id"].value.trim();
@@ -474,6 +524,7 @@ elements.clear.addEventListener("click", () => {
   $("idempotency").value = "";
   elements["execution-id"].value = "";
   currentID = "";
+  currentStatus = "";
   exchanges.clear();
   renderDebug();
   resetResponse();

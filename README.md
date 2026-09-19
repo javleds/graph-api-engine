@@ -69,7 +69,7 @@ Abrir `/playground` en el mismo servicio (por ejemplo, `http://127.0.0.1:8080/pl
 
 El botón **Validar JSON** comprueba sintaxis, schema y referencias sin crear un job ni consultar al proveedor. Indica si el input cumple el contrato y muestra el campo o la ubicación del error cuando están disponibles. Los números de línea del editor no son seleccionables; al editar se descarta el diagnóstico anterior.
 
-La depuración muestra el request enviado y las respuestas HTTP de creación, estado y resultado. Detener el seguimiento no cancela el job; se puede retomar mediante su ID. No hay historial ni credenciales guardadas en el navegador. El ejemplo de la página usa un proveedor ilustrativo: adaptar URL, selector y credenciales a un destino permitido por la configuración.
+La depuración muestra el request enviado y las respuestas HTTP de creación, estado y resultado. **Detener seguimiento** sólo desconecta el navegador; se puede retomar mediante el ID. **Abortar ejecución** solicita a Go el cierre durable del árbol y cancela las llamadas activas del job, tanto en v1 como en v2. La UI muestra **Cancelada**; la API conserva `status: failed` con `error.code: EXECUTION_CANCELLED`. En v2 se conservan los fragmentos ya confirmados. No hay historial ni credenciales guardadas en el navegador. El ejemplo de la página usa un proveedor ilustrativo: adaptar URL, selector y credenciales a un destino permitido por la configuración.
 
 El playground está **abierto para uso local** y sus endpoints `/playground/api/executions` usan el owner reservado `system:playground`, compartido entre visitantes. Quien pueda acceder puede crear jobs y consultar los jobs de esa identidad si conoce su ID. Mantener el servicio en la red local prevista. `/v1/executions` sigue autenticado y no permite leer estos jobs con otro owner. Las cuotas, límites, validación y egress siguen aplicando. No hay tokens automáticos expuestos ni autenticación configurable por `.env` en esta versión.
 
@@ -113,3 +113,7 @@ El runtime usa UID/GID `65532`, certificados CA y filesystem de solo lectura. `/
 Compose publica únicamente `127.0.0.1:8080`. Para exposición remota, agregar terminación TLS administrada y reglas de red. El servicio necesita salida a los origins autorizados; no depende de Redis ni de un broker. Eliminar el volumen elimina ejecuciones, resultados, notificaciones y caché. La política `restart` no reanuda árboles interrumpidos.
 
 La [matriz de pruebas](docs/testing.md) relaciona los casos de aceptación del spec con sus verificaciones.
+
+### Cancelar mediante API
+
+Enviar `POST /v1/executions/{id}/cancel` o `POST /v2/executions/{id}/cancel`, sin body, con token del mismo owner y permisos `executions:create` y `executions:read`. Devuelve 200 con el estado terminal confirmado; repetirlo no duplica la finalización ni el webhook. Si el job ya terminó, conserva ese resultado. El cierre usa la persistencia y webhook existentes; cancelar no revierte acciones ya realizadas en el proveedor. Una llamada compartida puede continuar para otros jobs. Ver [spec de cancelación](docs/specs/006-cancel-execution.md).
