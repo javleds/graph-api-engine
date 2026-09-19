@@ -53,7 +53,7 @@ Supone que `/api/v1/products` devuelve un objeto con un array en `data.items`. S
 make build
 ./bin/api-engine validate --file request.json
 # Aplica también los límites y origins de tu configuración:
-./bin/api-engine validate --file request.json --config config/config.json
+./bin/api-engine validate --file request.json --config config/config.yml
 
 curl --request POST "$ENGINE_URL/v1/executions" \
   --header "Authorization: Bearer $ENGINE_TOKEN" \

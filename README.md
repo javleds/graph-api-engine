@@ -21,7 +21,7 @@ Los tests usan SQLite temporal y proveedores locales controlados; no requieren c
 
 ## Configuración y secretos
 
-Copiar `config/config.example.json` a `config/config.json` y ajustar rutas locales, URL pública y allowlists de proveedores y webhooks. El ejemplo contiene valores ilustrativos y no es una configuración lista para producción. Consultar §21 del spec para todos los campos y defaults.
+Copiar `config/config.example.yml` a `config/config.yml` y ajustar rutas locales, URL pública y allowlists de proveedores y webhooks. El ejemplo contiene valores ilustrativos y no es una configuración lista para producción. Consultar §21 del spec para todos los campos y defaults.
 
 Los archivos de identidad y cifrado contienen **32 bytes binarios aleatorios**, cada uno generado independientemente. Guardarlos fuera del repositorio, accesibles solo al operador y al UID del runtime. `activeKeyId` identifica la clave de cifrado vigente; conservar las claves anteriores para leer registros durante rotación. La clave de identidad debe permanecer estable para mantener scopes e idempotencia.
 
@@ -30,19 +30,21 @@ El archivo de principals relaciona `ownerId`, SHA-256 hexadecimal del token bear
 HTTPS es obligatorio salvo desarrollo explícito. Para pruebas locales, habilitar `allowHTTPForDevelopment`, declarar el origin exacto y autorizar el CIDR privado concreto. La autenticación solo puede desactivarse escuchando en loopback. No usar la desactivación de autenticación en el contenedor expuesto.
 
 ```sh
-./bin/api-engine migrate --config config/config.json
-./bin/api-engine serve --config config/config.json
+./bin/api-engine migrate --config config/config.yml
+./bin/api-engine serve --config config/config.yml
 ```
 
 `serve` valida configuración y claves, adquiere el lock de instancia, migra y reconcilia el estado antes de aceptar tráfico. No ejecutar varios procesos sobre el mismo directorio. `ENGINE_CONFIG`, `ENGINE_HTTP_ADDRESS`, `ENGINE_HTTP_PUBLIC_BASE_URL` y `ENGINE_LOG_LEVEL` son los overrides admitidos. `--config` prevalece sobre `ENGINE_CONFIG`.
+
+La configuración del operador acepta exclusivamente YAML (`.yml` o `.yaml`). Sus valores escalares pueden incluir ${VARIABLE}; la variable debe existir y no estar vacía. Un valor que sea solo ${VARIABLE} conserva tipos YAML como número o booleano; una referencia dentro de texto produce un string. El loader rechaza aliases, merges, claves duplicadas, documentos múltiples, valores `null` y campos desconocidos.
 
 ### Orígenes abiertos en desarrollo local
 
 Para probar APIs y webhooks públicos sin registrar cada dominio, configurar ambos campos en `security.egress`:
 
-```json
-"allowHTTPForDevelopment": true,
-"allowAnyOriginForDevelopment": true
+```yaml
+allowHTTPForDevelopment: true
+allowAnyOriginForDevelopment: true
 ```
 
 `allowAnyOriginForDevelopment` es `false` por defecto y exige el modo de desarrollo existente (`allowHTTPForDevelopment`). Cuando está activo, las listas de origins dejan de restringir destinos y pueden estar vacías; la validación del playground y los transportes usan la misma política. En producción conservar ambos flags en `false` y configurar las allowlists.
@@ -106,7 +108,7 @@ docker compose logs -f api-engine
 
 Compose monta los tres archivos `secrets/engine-identity-key`, `secrets/engine-encryption-key` y `secrets/engine-principals.json` individualmente. Mantener el directorio host `secrets` con permisos `0700` y esos archivos con lectura para el UID del contenedor (`0644` dentro del directorio protegido es suficiente). No se monta un token Bearer en texto plano. Si se cambian nombres o se agregan claves para rotación, actualizar los mounts junto con la configuración.
 
-Los bind mounts usan `create_host_path: false`: si falta un archivo, Compose falla de inmediato en vez de crear un directorio con nombre `.json`. Si un arranque anterior creó `config/config.json` como directorio, detener el servicio, conservar cualquier contenido existente y reemplazar el directorio vacío por el archivo de configuración antes de recrearlo.
+Los bind mounts usan `create_host_path: false`: si falta un archivo, Compose falla de inmediato en vez de crear un directorio con nombre `.yml`. Si un arranque anterior creó `config/config.yml` como directorio, detener el servicio, conservar cualquier contenido existente y reemplazar el directorio vacío por el archivo de configuración antes de recrearlo.
 
 El runtime usa UID/GID `65532`, certificados CA y filesystem de solo lectura. `/data` pertenece a ese UID y contiene `engine.db` y `cache.db`; `/tmp` es temporal. Preparar permisos de lectura de configuración y secretos para ese UID. El volumen nuevo hereda el ownership de `/data`; para volúmenes existentes, corregirlo antes del arranque.
 

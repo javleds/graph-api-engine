@@ -1310,7 +1310,7 @@ contracts/
     webhook_hmac.json
 
 config/
-  config.example.json
+  config.example.yml
 
 docs/
   specs/
@@ -2848,11 +2848,11 @@ Una API maliciosa puede devolver JSON válido pero enorme, páginas infinitas o 
 
 Esta configuración pertenece al **operador del engine**, no a `POST /v1/executions`. El consumidor no puede sustituirla ni aumentarla desde el contrato del job.
 
-El formato es JSON. Precedencia: defaults documentados, archivo, variables de entorno explícitamente reconocidas y flags de CLI. No aceptar overrides genéricos de cualquier campo mediante strings sin validar. Un campo desconocido o un valor incoherente falla el arranque.
+El formato es YAML (`.yml` o `.yaml`). Precedencia: defaults documentados, archivo, variables de entorno explícitamente reconocidas y flags de CLI. No aceptar overrides genéricos de cualquier campo mediante strings sin validar. Un campo desconocido o un valor incoherente falla el arranque. Se rechazan aliases, merge keys, claves duplicadas, documentos múltiples, claves no escalares y valores nulos.
 
 ### 21.1. Ejemplo completo
 
-```json
+```yaml
 {
   "version": 1,
   "mode": "local",
@@ -3068,7 +3068,7 @@ Los archivos `identityKeyFile` y los listados en `keyFiles` contienen exactament
 
 Overrides admitidos en v1: `ENGINE_CONFIG` selecciona el archivo por defecto; `ENGINE_HTTP_ADDRESS`, `ENGINE_HTTP_PUBLIC_BASE_URL` y `ENGINE_LOG_LEVEL` reemplazan únicamente esos campos. `--config` tiene prioridad sobre `ENGINE_CONFIG`. `GOMEMLIMIT` pertenece al runtime de Go, no al contrato del engine.
 
-No imprimir una configuración efectiva con secretos ni admitir interpolación libre de env dentro del JSON recibido por HTTP. Cualquier nuevo override requiere documentación y test.
+No imprimir una configuración efectiva con secretos ni admitir interpolación libre de env dentro del JSON recibido por HTTP. La configuración YAML admite solo ${VARIABLE} en valores escalares: variables ausentes o vacías fallan; una referencia que ocupa todo el valor conserva el tipo escalar YAML y una referencia incrustada produce un string. No admitir defaults, expresiones, inclusión de archivos ni sustitución de claves. Cualquier nuevo override requiere documentación y test.
 
 `validate --file` valida schema y semántica pura con los defaults de seguridad estructural, sin abrir bases, resolver DNS ni leer credenciales del proveedor. Con `--config` también comprueba techos y allowlists del operador, pero no hace conexiones. La validación offline no demuestra que la API exista, que los tokens funcionen o que su paginación cumpla el contrato.
 
@@ -3189,9 +3189,9 @@ Como punto de partida, las páginas consultadas muestran `modernc.org/sqlite v1.
 ### 24.2. Comandos
 
 ```bash
-api-engine serve --config ./config/config.json
+api-engine serve --config ./config/config.yml
 api-engine validate --file ./contracts/examples/pokemon_full.json
-api-engine migrate --config ./config/config.json
+api-engine migrate --config ./config/config.yml
 api-engine version
 ```
 
@@ -3209,12 +3209,12 @@ Base de Compose para implementar junto con el Dockerfile:
 services:
   api-engine:
     build: .
-    command: ["serve", "--config", "/etc/api-engine/config.json"]
+    command: ["serve", "--config", "/etc/api-engine/config.yml"]
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - engine-data:/data
-      - ./config/config.json:/etc/api-engine/config.json:ro
+      - ./config/config.yml:/etc/api-engine/config.yml:ro
       - ./secrets:/run/secrets:ro
     read_only: true
     tmpfs:

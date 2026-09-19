@@ -5,7 +5,7 @@ El playground local requiere probar APIs/webhooks sin editar allowlists para cad
 ## Objetivo
 Permitir cualquier origen en desarrollo mediante una opción explícita, sin cambiar el default restrictivo de producción.
 ## Alcance
-security.egress.allowAnyOriginForDevelopment, default false; aplica al proveedor y webhook, compilador, CLI/validador y transporte real. Activarla en config/config.json local no versionado.
+security.egress.allowAnyOriginForDevelopment, default false; aplica al proveedor y webhook, compilador, CLI/validador y transporte real. Activarla en config/config.yml local no versionado.
 ## Fuera de alcance
 Desactivar validación de URL, HTTPS en producción, controles de IP/SSRF, redirects, autenticación, cuotas o límites. Redes privadas siguen requiriendo allowedPrivateCIDRs explícito.
 ## Comportamiento esperado
