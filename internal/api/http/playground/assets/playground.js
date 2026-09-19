@@ -147,6 +147,12 @@ function resetResponse() {
   elements["response-label"].textContent =
     "El resultado aparecerá cuando termine el job.";
 }
+function focusExecutionOverview() {
+  document.querySelector(".hero-row").scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
 function displayResponse(raw, label) {
   rawResponse = raw;
   elements["response-raw"].value = raw;
@@ -499,6 +505,7 @@ async function execute() {
   elements.status.dataset.status = "pending";
   message();
   setTracking(true, "Creando ejecución…");
+  focusExecutionOverview();
   const headers = { "Content-Type": "application/json" };
   const idempotency = $("idempotency").value;
   if (idempotency) headers["Idempotency-Key"] = idempotency;
