@@ -7,11 +7,16 @@ import (
 
 func (s *Server) registerPlayground(mux *http.ServeMux) {
 	playground.Register(mux)
+	s.registerPlaygroundSession(mux)
 	if s.PlaygroundAuth == nil {
 		return
 	}
 	local := *s
 	local.Auth = s.PlaygroundAuth
+	if s.PlaygroundSession != nil {
+		local.Auth = s.PlaygroundSession
+		local.PlaygroundCookieName = playgroundSessionCookie
+	}
 	local.ExecutionBasePath = "/playground/api/executions"
 	protection := http.NewCrossOriginProtection()
 	protection.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

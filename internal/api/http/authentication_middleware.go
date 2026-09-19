@@ -7,11 +7,7 @@ import (
 )
 
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request, permission string) (securitydomain.Principal, bool) {
-	header := r.Header.Get("Authorization")
-	token := ""
-	if strings.HasPrefix(header, "Bearer ") {
-		token = strings.TrimPrefix(header, "Bearer ")
-	}
+	token := s.credential(r)
 	principal, err := s.Auth.Authenticate(r.Context(), token)
 	if err != nil {
 		w.Header().Set("WWW-Authenticate", "Bearer")
@@ -23,4 +19,19 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request, permission st
 		return principal, false
 	}
 	return principal, true
+}
+
+func (s *Server) credential(r *http.Request) string {
+	if s.PlaygroundCookieName != "" {
+		cookie, err := r.Cookie(s.PlaygroundCookieName)
+		if err == nil {
+			return cookie.Value
+		}
+		return ""
+	}
+	header := r.Header.Get("Authorization")
+	if strings.HasPrefix(header, "Bearer ") {
+		return strings.TrimPrefix(header, "Bearer ")
+	}
+	return ""
 }

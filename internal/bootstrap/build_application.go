@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -181,21 +182,28 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 		CheckCapacity:     a.checkCapacity,
 	}
 	canceller := &application.CancelExecution{Store: a.Store, Reader: a.Store, Finalizer: finalizer, Canceller: a.Dispatcher, Clock: clock.RealClock{}, PersistenceTimeout: cfg.Shutdown.PersistenceTimeout.Value(), ResultRetention: cfg.Storage.ResultRetention.Value()}
+	playgroundSession, err := security.NewPlaygroundSessionAuthenticator(cfg.Security.Playground.Username, cfg.Security.Playground.Password, identity, 8*time.Hour)
+	if err != nil {
+		return nil, err
+	}
+	publicURL, _ := url.Parse(cfg.HTTP.PublicBaseURL)
 	server := &api.Server{
-		Cancel:          canceller,
-		PlaygroundAuth:  security.PlaygroundAuthenticator{},
-		ValidateQuotas:  a.registerQuotas,
-		WebhookStatus:   outbox,
-		Create:          creator,
-		Reader:          a.Store,
-		Results:         a.Store,
-		V2Store:         a.Store,
-		Auth:            authenticator,
-		Clock:           clock.RealClock{},
-		Limits:          cfg.DefinitionLimits(),
-		MaxRequestBytes: int64(cfg.HTTP.MaxRequestBytes),
-		MaxJSONDepth:    cfg.Fetch.MaxJSONDepth,
-		Ready:           a.isReady,
+		Cancel:                 canceller,
+		PlaygroundAuth:         playgroundSession,
+		PlaygroundSession:      playgroundSession,
+		PlaygroundCookieSecure: publicURL.Scheme == "https",
+		ValidateQuotas:         a.registerQuotas,
+		WebhookStatus:          outbox,
+		Create:                 creator,
+		Reader:                 a.Store,
+		Results:                a.Store,
+		V2Store:                a.Store,
+		Auth:                   authenticator,
+		Clock:                  clock.RealClock{},
+		Limits:                 cfg.DefinitionLimits(),
+		MaxRequestBytes:        int64(cfg.HTTP.MaxRequestBytes),
+		MaxJSONDepth:           cfg.Fetch.MaxJSONDepth,
+		Ready:                  a.isReady,
 	}
 	if cfg.Observability.MetricsEnabled {
 		server.Metrics = a.Metrics

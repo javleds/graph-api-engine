@@ -13,25 +13,28 @@ import (
 )
 
 type Server struct {
-	Cancel               *application.CancelExecution
-	APIVersion           int
-	V2Store              ports.V2Store
-	PlaygroundAuth       securityports.PrincipalAuthenticator
-	ExecutionBasePath    string
-	ValidateQuotas       func(context.Context, definitiondomain.CompiledDefinition) error
-	MetricsPath          string
-	WebhookStatus        notificationports.WebhookStatusReader
-	Create               *application.CreateExecution
-	Reader               ports.ExecutionReader
-	Results              ports.ResultReader
-	Auth                 securityports.PrincipalAuthenticator
-	Clock                clock.Clock
-	Limits               definitionapp.ValidationLimits
-	MaxRequestBytes      int64
-	MaxJSONDepth         int
-	ValidateDestinations func(definitiondomain.CompiledDefinition) error
-	Ready                func(context.Context) bool
-	Metrics              http.Handler
+	Cancel                 *application.CancelExecution
+	APIVersion             int
+	V2Store                ports.V2Store
+	PlaygroundAuth         securityports.PrincipalAuthenticator
+	PlaygroundSession      securityports.PlaygroundSession
+	PlaygroundCookieName   string
+	PlaygroundCookieSecure bool
+	ExecutionBasePath      string
+	ValidateQuotas         func(context.Context, definitiondomain.CompiledDefinition) error
+	MetricsPath            string
+	WebhookStatus          notificationports.WebhookStatusReader
+	Create                 *application.CreateExecution
+	Reader                 ports.ExecutionReader
+	Results                ports.ResultReader
+	Auth                   securityports.PrincipalAuthenticator
+	Clock                  clock.Clock
+	Limits                 definitionapp.ValidationLimits
+	MaxRequestBytes        int64
+	MaxJSONDepth           int
+	ValidateDestinations   func(definitiondomain.CompiledDefinition) error
+	Ready                  func(context.Context) bool
+	Metrics                http.Handler
 }
 
 func (s *Server) Handler() http.Handler {
