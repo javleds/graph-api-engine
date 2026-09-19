@@ -9,9 +9,16 @@
   </head>
   <body>
     <header class="masthead">
-      <a href="/playground" class="brand"
-        ><span class="brand-icon" aria-hidden="true">↳</span> API ENGINE</a
-      ><span class="local-label">ENTORNO LOCAL</span>
+      <div class="brand-group">
+        <a href="/playground" class="brand"
+          ><span class="brand-icon" aria-hidden="true">↳</span> API ENGINE</a
+        ><span class="version-label">v2</span>
+        <span class="local-label"><i aria-hidden="true"></i>ENTORNO LOCAL</span>
+      </div>
+      <nav class="header-nav" aria-label="Navegación del playground">
+        <a href="#request-title">Editor</a>
+        <a href="#debug-title">Depuración</a>
+      </nav>
     </header>
     <main>
       <div class="intro">
@@ -24,17 +31,29 @@
       </div>
       <section class="status-panel" aria-label="Estado de ejecución">
         <div class="status-top">
-          <span id="status" class="badge" role="status">○ Sin ejecución</span
-          ><span id="tracking-state">Listo para ejecutar</span
-          ><button id="stop" class="subtle" disabled>
-            Detener seguimiento
-          </button>
-          <button id="cancel-execution" class="secondary" disabled>
-            Abortar ejecución
-          </button>
+          <div class="status-summary">
+            <span id="status" class="badge" role="status">○ Sin ejecución</span
+            ><span id="tracking-state">Listo para ejecutar</span>
+          </div>
+          <div class="status-actions">
+            <button id="stop" class="subtle" disabled>
+              Detener seguimiento
+            </button>
+            <button id="cancel-execution" class="secondary" disabled>
+              Abortar ejecución
+            </button>
+          </div>
         </div>
-        <dl id="execution-meta" class="metadata"></dl>
-        <div id="progress" class="counters"></div>
+        <div class="execution-overview">
+          <dl id="execution-meta" class="metadata"></dl>
+          <section class="metrics-panel" aria-labelledby="metrics-title">
+            <div class="metrics-heading">
+              <h2 id="metrics-title">Métricas de grafo</h2>
+              <span>Se actualizan durante la ejecución</span>
+            </div>
+            <div id="progress" class="counters"></div>
+          </section>
+        </div>
         <div id="webhook" class="webhook" hidden></div>
         <div id="message" class="message" role="alert" hidden></div>
       </section>
@@ -42,8 +61,8 @@
         <section class="panel input-panel" aria-labelledby="request-title">
           <div class="panel-heading">
             <div>
-              <span class="step">01</span>
-              <h2 id="request-title">Request</h2>
+              <span class="step">01 Request</span>
+              <h2 id="request-title">Configuración y Grafo</h2>
             </div>
             <button id="example" class="subtle">Cargar ejemplo</button>
           </div>
@@ -96,8 +115,8 @@
         <section class="panel output-panel" aria-labelledby="response-title">
           <div class="panel-heading">
             <div>
-              <span class="step">02</span>
-              <h2 id="response-title">Respuesta</h2>
+              <span class="step step-cyan">02 Respuesta</span>
+              <h2 id="response-title">Explorador de Árbol</h2>
             </div>
             <button id="copy" class="subtle" disabled>Copiar JSON</button>
           </div>
