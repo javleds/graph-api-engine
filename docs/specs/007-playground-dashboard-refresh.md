@@ -18,6 +18,8 @@ La página seguirá siendo HTML, CSS y JavaScript estáticos embebidos por el se
 
 La información dinámica seguirá llegando mediante los elementos existentes: `#status`, `#execution-meta`, `#progress`, `#v2-output`, `#response-*` y `#debug`. El CSS representa esos datos como bandas de estado, tarjetas y paneles de consola.
 
+El encabezado de la ejecución usa una distribución de tres franjas: controles junto al título, detalle temporal en una banda independiente y métricas agrupadas por raíces, tráfico y rendimiento. Cada grupo se construye a partir del mismo objeto `progress` que expone la API.
+
 ## Validación
 
 Ejecutar `npm run test:playground` para comprobar los recorridos v1, v2, cancelación, reanudación, accesibilidad de teclado y diseño adaptable. Comprobar visualmente `/playground` en escritorio y móvil una vez reconstruido el servicio local.
@@ -26,3 +28,5 @@ Ejecutar `npm run test:playground` para comprobar los recorridos v1, v2, cancela
 
 1. `docs: specify playground dashboard refresh`
 2. `feat(playground): refresh dashboard visual design`
+3. `docs: refine playground execution layout`
+4. `feat(playground): group execution dashboard metrics`
