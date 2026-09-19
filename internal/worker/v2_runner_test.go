@@ -161,3 +161,54 @@ func TestV2PublishesParentBeforeChildFetch(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestV2FailureClosuresDoNotContaminateLaterRoots(t *testing.T) {
+	fake := &fakeFetcher{handle: func(_ context.Context, r fetch.FetchRequest) (fetch.FetchResult, error) {
+		if strings.HasSuffix(r.Request.URL, "/bad") {
+			return fetch.FetchResult{}, &fetch.UpstreamFailure{Code: "UPSTREAM_NOT_FOUND"}
+		}
+		return response(`{"nested":{"ok":true}}`)
+	}}
+	runner, store, durable := v2TestRunner(fake, call("bad", "single", "/bad"), call("good", "single", "/good"))
+	if err := runner.Run(context.Background(), "id"); err != nil {
+		t.Fatal(err)
+	}
+	if store.completion.Status != execution.CompletedWithErrors {
+		t.Fatal(store.completion)
+	}
+	for _, chunk := range durable.chunks {
+		if chunk.Path == "/bad" && chunk.Operation == "value" && chunk.Status != "failed" {
+			t.Fatal("failed placeholder falsely completed", chunk)
+		}
+		if strings.HasPrefix(chunk.Path, "/good") && chunk.Operation == "close" && chunk.Status != "completed" {
+			t.Fatal("independent success marked incomplete", chunk)
+		}
+	}
+}
+
+func TestV2AlreadyRunningJobIsNotClaimedTwice(t *testing.T) {
+	fake := &fakeFetcher{handle: func(context.Context, fetch.FetchRequest) (fetch.FetchResult, error) {
+		t.Fatal("duplicate worker fetched")
+		return response(`true`)
+	}}
+	runner, store, _ := v2TestRunner(fake, call("root", "single", "/root"))
+	store.current.Status = execution.Running
+	if err := runner.Run(context.Background(), "id"); err != nil || store.finished {
+		t.Fatal(err)
+	}
+}
+
+func TestV2IncompatibleCheckpointFailsWithoutHTTP(t *testing.T) {
+	fake := &fakeFetcher{handle: func(context.Context, fetch.FetchRequest) (fetch.FetchResult, error) {
+		t.Fatal("incompatible checkpoint fetched")
+		return response(`true`)
+	}}
+	runner, store, durable := v2TestRunner(fake, call("root", "single", "/root"))
+	durable.state.CheckpointVersion = 99
+	if err := runner.Run(context.Background(), "id"); err != nil {
+		t.Fatal(err)
+	}
+	if store.completion.Error == nil || store.completion.Error.Code != "UNSUPPORTED_CHECKPOINT_VERSION" {
+		t.Fatal(store.completion)
+	}
+}

@@ -76,6 +76,9 @@ func (m *v2Machine) stepCall(ctx context.Context, frame v2Frame, index int, comm
 	case "close":
 		if call.Type == "collection" {
 			m.chunk(frame, "close", nil, commit)
+			if !frame.Available {
+				commit.Chunks[len(commit.Chunks)-1].Status = "failed"
+			}
 		}
 		if len(frame.Call) == 1 {
 			root := &m.checkpoint.Report.Roots[frame.Call[0]]
@@ -227,6 +230,7 @@ func (m *v2Machine) failCall(frame v2Frame, index int, failure execution.NodeFai
 			m.chunk(frame, "array", nil, commit)
 		} else {
 			m.chunk(frame, "value", nil, commit)
+			commit.Chunks[len(commit.Chunks)-1].Status = "failed"
 		}
 	}
 	frame.Phase = "close"

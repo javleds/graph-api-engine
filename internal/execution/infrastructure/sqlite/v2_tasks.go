@@ -233,6 +233,9 @@ func (s *ExecutionStore) projectV2Node(ctx context.Context, tx *sql.Tx, owner st
 		node.Status = c.Status
 	} else if c.Operation == "value" {
 		node.Status = "completed"
+		if c.Status != "" {
+			node.Status = c.Status
+		}
 	}
 	raw, err := json.Marshal(node)
 	if err != nil {

@@ -124,11 +124,13 @@ func (r *V2Runner) Run(parent context.Context, id execution.ExecutionID) error {
 			}
 			return err
 		}
+		referencedAfter := v2ReferencedInputs(checkpoint.Stack)
 		for key := range referencedBefore {
-			if !v2ReferencedInputs(checkpoint.Stack)[key] {
+			if !referencedAfter[key] {
 				commit.DeleteInputs = append(commit.DeleteInputs, key)
 			}
 		}
+		commit.Progress = &checkpoint.Progress
 		commit.Task.Payload, err = json.Marshal(checkpoint)
 		if err != nil {
 			return err

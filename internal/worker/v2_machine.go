@@ -26,6 +26,7 @@ type v2Machine struct {
 	checkpoint  *v2Checkpoint
 	cachedKey   string
 	cachedValue any
+	sortedKeys  map[string][]string
 }
 
 func (m *v2Machine) nodeID(path string) string {
@@ -44,7 +45,10 @@ func (m *v2Machine) call(indices []int) definition.CompiledCall {
 	return call
 }
 func (m *v2Machine) push(frame v2Frame) { m.checkpoint.Stack = append(m.checkpoint.Stack, frame) }
-func (m *v2Machine) pop()               { m.checkpoint.Stack = m.checkpoint.Stack[:len(m.checkpoint.Stack)-1] }
+func (m *v2Machine) pop() {
+	delete(m.sortedKeys, m.checkpoint.Stack[len(m.checkpoint.Stack)-1].NodeID)
+	m.checkpoint.Stack = m.checkpoint.Stack[:len(m.checkpoint.Stack)-1]
+}
 func (m *v2Machine) chunk(frame v2Frame, operation string, value any, commit *execution.V2Commit) {
 	chunk := execution.V2Chunk{Type: "data", Operation: operation, NodeID: frame.NodeID, ParentID: frame.ParentID, Key: frame.Key, Index: frame.Index, Path: frame.Path}
 	if operation == "value" {
@@ -165,11 +169,18 @@ func (m *v2Machine) stepValue(ctx context.Context, frame v2Frame, index int, com
 			m.checkpoint.Stack[index] = frame
 			return nil
 		}
-		keys := make([]string, 0, len(typed))
-		for key := range typed {
-			keys = append(keys, key)
+		keys, cached := m.sortedKeys[frame.NodeID]
+		if !cached {
+			keys = make([]string, 0, len(typed))
+			for key := range typed {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			if m.sortedKeys == nil {
+				m.sortedKeys = map[string][]string{}
+			}
+			m.sortedKeys[frame.NodeID] = keys
 		}
-		sort.Strings(keys)
 		if frame.Cursor < len(keys) {
 			key := keys[frame.Cursor]
 			frame.Cursor++
@@ -235,6 +246,7 @@ func (m *v2Machine) stepItem(ctx context.Context, frame v2Frame, index int, comm
 			default:
 				m.failure(frame, "PARENT_NOT_ENRICHABLE", "assembly", commit)
 				m.chunk(frame, "value", nil, commit)
+				commit.Chunks[len(commit.Chunks)-1].Status = "failed"
 				m.pop()
 				return nil
 			}
@@ -242,6 +254,7 @@ func (m *v2Machine) stepItem(ctx context.Context, frame v2Frame, index int, comm
 				if _, exists := object[child.Name]; exists {
 					m.failure(frame, "OUTPUT_FIELD_COLLISION", "assembly", commit)
 					m.chunk(frame, "value", nil, commit)
+					commit.Chunks[len(commit.Chunks)-1].Status = "failed"
 					m.pop()
 					return nil
 				}
