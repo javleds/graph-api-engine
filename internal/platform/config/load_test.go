@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,26 +10,20 @@ import (
 
 func example(t *testing.T) []byte {
 	t.Helper()
-	data, err := os.ReadFile("../../../config/config.example.json")
+	data, err := os.ReadFile("../../../config/config.example.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return data
 }
-func TestExampleDefaultsAndDurationRoundTrip(t *testing.T) {
+
+func TestExampleDefaults(t *testing.T) {
 	config, err := Parse(example(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if config.Executions.Timeout.Value() != 6*time.Hour || config.Cache.MaxTTL.Value() != 30*24*time.Hour {
 		t.Fatal("duration defaults incorrect")
-	}
-	data, err := json.Marshal(config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Parse(data); err != nil {
-		t.Fatal(err)
 	}
 	limits := config.DefinitionLimits()
 	if limits.MaxDefinitionDepth != 8 || limits.MaxRootCalls != 16 {
@@ -41,11 +34,12 @@ func TestExampleDefaultsAndDurationRoundTrip(t *testing.T) {
 		t.Fatal("definition limits alias configuration")
 	}
 }
+
 func TestDefaultsRequireDeploymentSettings(t *testing.T) {
-	if _, err := Parse([]byte(`{}`)); err == nil {
+	if _, err := Parse([]byte("{}")); err == nil {
 		t.Fatal("missing deployment settings accepted")
 	}
-	raw := `{"http":{"publicBaseUrl":"https://engine.example.com"},"security":{"principalsFile":"/absent/principals","identityKeyFile":"/absent/identity","encryption":{"activeKeyId":"one","keyFiles":{"one":"/absent/key"}},"egress":{"upstreamAllowedOrigins":["https://example.com"],"webhookAllowedOrigins":["https://consumer.example.com"]}}}`
+	raw := "http:\n  publicBaseUrl: https://engine.example.com\nsecurity:\n  principalsFile: /absent/principals\n  identityKeyFile: /absent/identity\n  encryption:\n    activeKeyId: one\n    keyFiles:\n      one: /absent/key\n  egress:\n    upstreamAllowedOrigins: [https://example.com]\n    webhookAllowedOrigins: [https://consumer.example.com]\n"
 	config, err := Parse([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
@@ -54,34 +48,36 @@ func TestDefaultsRequireDeploymentSettings(t *testing.T) {
 		t.Fatal("defaults missing")
 	}
 }
+
 func TestRejectInvalidConfiguration(t *testing.T) {
 	raw := string(example(t))
 	for _, value := range []string{
-		strings.Replace(raw, `"mode": "local"`, `"mode": "redis"`, 1),
-		strings.Replace(raw, `"maxConcurrent": 4`, `"maxConcurrent": 0`, 1),
-		strings.Replace(raw, `"maxMessageBytes": 512`, `"maxMessageBytes": 63`, 1),
-		strings.Replace(raw, `"maxResultBytes": 16777216`, `"maxResultBytes": 1048576`, 1),
-		strings.Replace(raw, `"claimLease": "30s"`, `"claimLease": "10s"`, 1),
-		strings.Replace(raw, `"metadataRetention": "30d"`, `"metadataRetention": "1d"`, 1),
-		strings.Replace(raw, `"utilization": 0.95`, `"utilization": 1.1`, 1),
-		strings.Replace(raw, `"maxRootCalls": 16`, `"maxRootCalls": 129`, 1),
-		strings.Replace(raw, `"version": 1`, `"version": 1,"unknown": true`, 1),
-		strings.Replace(raw, `"version": 1`, `"version": 1,"version": 1`, 1),
-		strings.Replace(raw, `"maxTTL": "30d"`, `"maxTTL": "0d"`, 1),
-		strings.Replace(raw, `"mode": "local"`, `"mode": null`, 1),
+		strings.Replace(raw, "mode: local", "mode: redis", 1),
+		strings.Replace(raw, "maxConcurrent: 4", "maxConcurrent: 0", 1),
+		strings.Replace(raw, "maxMessageBytes: 512", "maxMessageBytes: 63", 1),
+		strings.Replace(raw, "maxResultBytes: 16777216", "maxResultBytes: 1048576", 1),
+		strings.Replace(raw, "claimLease: \"30s\"", "claimLease: \"10s\"", 1),
+		strings.Replace(raw, "metadataRetention: \"30d\"", "metadataRetention: \"1d\"", 1),
+		strings.Replace(raw, "utilization: 0.95", "utilization: 1.1", 1),
+		strings.Replace(raw, "maxRootCalls: 16", "maxRootCalls: 129", 1),
+		raw + "\nunknown: true\n",
+		raw + "\nversion: 1\n",
+		strings.Replace(raw, "maxTTL: \"30d\"", "maxTTL: \"0d\"", 1),
+		strings.Replace(raw, "mode: local", "mode: null", 1),
 	} {
 		if _, err := Parse([]byte(value)); err == nil {
 			t.Errorf("accepted invalid configuration: %s", value)
 		}
 	}
 }
+
 func TestExplicitEnvironmentAndFilePriority(t *testing.T) {
 	directory := t.TempDir()
-	path := filepath.Join(directory, "config.json")
+	path := filepath.Join(directory, "config.yml")
 	if err := os.WriteFile(path, example(t), 0600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("ENGINE_CONFIG", "/not/a/config.json")
+	t.Setenv("ENGINE_CONFIG", "/not/a/config.yml")
 	t.Setenv("ENGINE_HTTP_ADDRESS", "127.0.0.1:9000")
 	t.Setenv("ENGINE_HTTP_PUBLIC_BASE_URL", "https://new.example.com")
 	t.Setenv("ENGINE_LOG_LEVEL", "debug")
@@ -98,6 +94,58 @@ func TestExplicitEnvironmentAndFilePriority(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestYAMLRejectsAmbiguousSyntax(t *testing.T) {
+	for name, raw := range map[string]string{
+		"alias":      "value: &value test\nother: *value\n",
+		"merge":      "value: &value {one: 1}\n<<: *value\n",
+		"multiple":   "version: 1\n---\nversion: 1\n",
+		"non-string": "1: value\n",
+		"null":       "value: null\n",
+		"unknown":    "unknown: true\n",
+		"duplicate":  "version: 1\nversion: 1\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := decodeYAML([]byte(raw), func(string) (string, bool) { return "", false }); err == nil {
+				t.Fatal("accepted ambiguous YAML")
+			}
+		})
+	}
+}
+
+func TestYAMLInterpolationPreservesScalarTypes(t *testing.T) {
+	raw := "http:\n  address: $" + "{ADDRESS}\n  publicBaseUrl: https://$" + "{HOST}/api\nexecutions:\n  maxConcurrent: $" + "{CONCURRENCY}\nsecurity:\n  authenticationEnabled: $" + "{AUTHENTICATION}\n"
+	values := map[string]string{
+		"ADDRESS":        "127.0.0.1:8080",
+		"HOST":           "engine.example.test",
+		"CONCURRENCY":    "7",
+		"AUTHENTICATION": "true",
+	}
+	config, err := decodeYAML([]byte(raw), func(name string) (string, bool) {
+		value, ok := values[name]
+		return value, ok
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.HTTP.Address != "127.0.0.1:8080" || config.HTTP.PublicBaseURL != "https://engine.example.test/api" || config.Executions.MaxConcurrent != 7 || !config.Security.AuthenticationEnabled {
+		t.Fatalf("interpolation lost scalar values: %#v", config)
+	}
+	if _, err := decodeYAML([]byte("http:\n  address: $"+"{MISSING}\n"), func(string) (string, bool) { return "", false }); err == nil {
+		t.Fatal("missing environment variable accepted")
+	}
+}
+
+func TestLoadRejectsJSONConfiguration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, example(t), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err == nil {
+		t.Fatal("JSON configuration accepted")
+	}
+}
+
 func TestDisabledAuthenticationRestrictedToDevelopmentLoopback(t *testing.T) {
 	config, err := Parse(example(t))
 	if err != nil {
@@ -117,6 +165,7 @@ func TestDisabledAuthenticationRestrictedToDevelopmentLoopback(t *testing.T) {
 		t.Fatal("public anonymous listener accepted")
 	}
 }
+
 func TestQuotaGroupDefaultsAndValidation(t *testing.T) {
 	config, err := Parse(example(t))
 	if err != nil {

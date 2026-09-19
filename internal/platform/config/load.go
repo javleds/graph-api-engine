@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/javleds/api-engine/internal/definition/infrastructure/schema"
 )
@@ -26,7 +27,10 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read configuration: %w", err)
 	}
-	result, err := decode(data)
+	if extension := filepath.Ext(path); extension != ".yml" && extension != ".yaml" {
+		return nil, fmt.Errorf("configuration must use a .yml or .yaml file")
+	}
+	result, err := decodeYAML(data, os.LookupEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +41,7 @@ func Load(path string) (*Config, error) {
 	return result, nil
 }
 func Parse(data []byte) (*Config, error) {
-	result, err := decode(data)
+	result, err := decodeYAML(data, os.LookupEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +50,7 @@ func Parse(data []byte) (*Config, error) {
 	}
 	return result, nil
 }
-func decode(data []byte) (*Config, error) {
+func decodeJSON(data []byte) (*Config, error) {
 	value, err := schema.DecodeJSON(data, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid configuration JSON")
