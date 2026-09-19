@@ -170,6 +170,7 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 		CheckCapacity:     a.checkCapacity,
 	}
 	server := &api.Server{
+		PlaygroundAuth:  security.PlaygroundAuthenticator{},
 		ValidateQuotas:  a.registerQuotas,
 		WebhookStatus:   outbox,
 		Create:          creator,

@@ -13,6 +13,8 @@ import (
 )
 
 type Server struct {
+	PlaygroundAuth       securityports.PrincipalAuthenticator
+	ExecutionBasePath    string
 	ValidateQuotas       func(context.Context, definitiondomain.CompiledDefinition) error
 	MetricsPath          string
 	WebhookStatus        notificationports.WebhookStatusReader
@@ -31,6 +33,7 @@ type Server struct {
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	s.registerPlayground(mux)
 	mux.HandleFunc("POST /v1/executions", s.createExecution)
 	mux.HandleFunc("GET /v1/executions/{id}", s.getExecution)
 	mux.HandleFunc("GET /v1/executions/{id}/result", s.getResult)

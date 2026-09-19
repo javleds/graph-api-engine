@@ -75,7 +75,7 @@ func (s *Server) createExecution(w http.ResponseWriter, r *http.Request) {
 	if result.Replay && execution.Status != "pending" && execution.Status != "running" {
 		status = 200
 	}
-	links := executionLinks(string(execution.ID))
+	links := s.executionLinks(string(execution.ID))
 	w.Header().Set("Location", links.Self)
 	writeJSON(w, status, dto.CreateExecutionResponse{ID: execution.ID, Status: execution.Status, Links: links})
 }

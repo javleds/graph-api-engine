@@ -36,7 +36,7 @@ func LoadTokenAuthenticator(path string) (*TokenAuthenticator, error) {
 	seen := map[string]bool{}
 	for _, p := range input.Principals {
 		hash, err := hex.DecodeString(p.TokenSHA256)
-		if err != nil || len(hash) != 32 || p.OwnerID == "" || seen[strings.ToLower(p.TokenSHA256)] {
+		if err != nil || len(hash) != 32 || p.OwnerID == "" || p.OwnerID == domain.PlaygroundOwnerID || seen[strings.ToLower(p.TokenSHA256)] {
 			return nil, fmt.Errorf("invalid principal")
 		}
 		seen[strings.ToLower(p.TokenSHA256)] = true

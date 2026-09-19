@@ -6,8 +6,12 @@ import (
 	"net/http"
 )
 
-func executionLinks(id string) dto.ExecutionLinks {
-	base := "/v1/executions/" + id
+func (s *Server) executionLinks(id string) dto.ExecutionLinks {
+	prefix := s.ExecutionBasePath
+	if prefix == "" {
+		prefix = "/v1/executions"
+	}
+	base := prefix + "/" + id
 	return dto.ExecutionLinks{Self: base, Result: base + "/result"}
 }
 func (s *Server) getExecution(w http.ResponseWriter, r *http.Request) {
@@ -41,5 +45,5 @@ func (s *Server) getExecution(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	writeJSON(w, 200, dto.ExecutionResponse{ID: execution.ID, Status: execution.Status, CreatedAt: execution.CreatedAt, StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt, Progress: execution.Progress, Webhook: webhook, Error: execution.Error, Errors: report.Errors, ErrorSummary: report.ErrorSummary, Roots: report.Roots, Links: executionLinks(string(execution.ID))})
+	writeJSON(w, 200, dto.ExecutionResponse{ID: execution.ID, Status: execution.Status, CreatedAt: execution.CreatedAt, StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt, Progress: execution.Progress, Webhook: webhook, Error: execution.Error, Errors: report.Errors, ErrorSummary: report.ErrorSummary, Roots: report.Roots, Links: s.executionLinks(string(execution.ID))})
 }

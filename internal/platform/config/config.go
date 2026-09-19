@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/javleds/api-engine/internal/definition/application"
 	"github.com/javleds/api-engine/internal/definition/domain"
+	"path"
+	"strings"
 )
 
 type Config struct {
@@ -68,6 +70,10 @@ func (c *Config) Validate() error {
 	}
 	if c.Observability.MetricsPath == "" || c.Observability.MetricsPath[0] != '/' {
 		return fmt.Errorf("metrics path must be absolute")
+	}
+	metricsPath := path.Clean(c.Observability.MetricsPath)
+	if metricsPath == "/playground" || strings.HasPrefix(metricsPath, "/playground/") {
+		return fmt.Errorf("metrics path conflicts with playground routes")
 	}
 	return nil
 }
