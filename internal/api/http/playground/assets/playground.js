@@ -1,3 +1,4 @@
+import { initializeInputEditor } from "./input-editor.js";
 import { renderJSON } from "./json-viewer.js";
 
 const $ = (id) => document.getElementById(id);
@@ -22,6 +23,7 @@ const elements = Object.fromEntries(
     "debug",
   ].map((id) => [id, $(id)]),
 );
+initializeInputEditor();
 const labels = {
   pending: "◷ Pendiente",
   running: "◷ En ejecución",
@@ -415,6 +417,7 @@ async function execute() {
 }
 $("example").addEventListener("click", () => {
   elements.request.value = JSON.stringify(example, null, 2);
+  elements.request.dispatchEvent(new Event("input"));
   message(
     "Ejemplo cargado. Sustituye example.com por un proveedor permitido que devuelva JSON.",
   );
@@ -430,6 +433,7 @@ elements.clear.addEventListener("click", () => {
   if (tracking) return;
   beginSession();
   elements.request.value = "";
+  elements.request.dispatchEvent(new Event("input"));
   $("idempotency").value = "";
   elements["execution-id"].value = "";
   currentID = "";

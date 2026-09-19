@@ -565,3 +565,68 @@ footer {
   padding: 4px 8px;
   border: 1px solid #bdd6cc;
 }
+
+.request-editor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  border: 1px solid #c9d6d3;
+  border-radius: 7px;
+  overflow: hidden;
+  margin: 3px 0 6px;
+}
+.request-editor:focus-within {
+  outline: 3px solid #359e89;
+  outline-offset: 3px;
+}
+.request-editor #request {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  white-space: pre;
+}
+.line-numbers {
+  position: relative;
+  width: 5ch;
+  background: #edf3f1;
+  border-right: 1px solid var(--line);
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+.line-numbers pre {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 11px 8px;
+  overflow: hidden;
+  text-align: right;
+  color: var(--muted);
+  font:
+    12px/1.7 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  user-select: none;
+}
+.validation-message {
+  font-size: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.validation-message[data-kind="success"] {
+  background: var(--soft);
+  color: #086249;
+}
+.validation-message[data-kind="error"] {
+  background: #fde8e6;
+  color: var(--error);
+}
+.validation-message[data-kind="pending"] {
+  background: #e8f0fc;
+  color: #245287;
+}
+.actions {
+  flex-wrap: wrap;
+}

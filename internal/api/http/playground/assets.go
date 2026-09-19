@@ -15,7 +15,7 @@ func Register(mux *http.ServeMux) {
 		switch name {
 		case "playground.css":
 			contentType = "text/css; charset=utf-8"
-		case "playground.js", "json-viewer.js":
+		case "playground.js", "json-viewer.js", "input-editor.js":
 		default:
 			http.NotFound(w, r)
 			return

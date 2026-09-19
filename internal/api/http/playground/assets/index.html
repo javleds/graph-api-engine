@@ -50,14 +50,27 @@
               Se envía el texto original. Configura un destino permitido por el
               servicio.
             </p>
-            <textarea
-              id="request"
-              spellcheck="false"
-              autocapitalize="off"
-              autocomplete="off"
-              placeholder='{"definition": {…}}'
-            ></textarea
-            ><label for="idempotency"
+            <div class="request-editor">
+              <div class="line-numbers" aria-hidden="true">
+                <pre id="request-lines">1</pre>
+              </div>
+              <textarea
+                id="request"
+                wrap="off"
+                aria-describedby="validation-message"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                placeholder='{"definition": {…}}'
+              ></textarea>
+            </div>
+            <p
+              id="validation-message"
+              class="validation-message"
+              role="status"
+              hidden
+            ></p>
+            <label for="idempotency"
               >Idempotency-Key <span class="optional">opcional</span></label
             ><input
               id="idempotency"
@@ -67,6 +80,7 @@
             <div class="actions">
               <button id="execute" class="primary">
                 Ejecutar request <span aria-hidden="true">↗</span></button
+              ><button id="validate-json" class="secondary">Validar JSON</button
               ><button id="clear" class="subtle">Limpiar</button>
             </div>
           </div>

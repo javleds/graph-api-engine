@@ -262,3 +262,53 @@ test('webhook refresh waits for result and preserves the displayed response', as
   expect(posts).toBe(1);
   expect(statuses).toBe(2);
 });
+
+test('input validation checks real schema without creating a job and numbers lines', async ({ page }) => {
+  let jobs = 0;
+  page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/api/executions')) jobs++; });
+  await page.goto('/playground');
+  await page.locator('#request').fill(requestBody);
+  await page.getByRole('button', { name: 'Validar JSON', exact: true }).click();
+  await expect(page.locator('#validation-message')).toContainText('JSON válido:');
+  await expect(page.locator('#status')).toContainText('Sin ejecución');
+  expect(jobs).toBe(0);
+  await expect(page.locator('#request-lines')).toHaveText(requestBody.split('\n').map((_, i) => i + 1).join('\n'));
+  expect(await page.locator('.line-numbers').evaluate(node => getComputedStyle(node).userSelect)).toBe('none');
+  await expect(page.locator('.line-numbers')).toHaveAttribute('aria-hidden', 'true');
+  await page.locator('#request').fill('{}');
+  await expect(page.locator('#validation-message')).toBeHidden();
+  await page.locator('#validate-json').click();
+  await expect(page.locator('#validation-message')).toContainText('JSON no válido');
+  await page.locator('#request').fill('{\n invalid\n}');
+  await page.locator('#validate-json').click();
+  await expect(page.locator('#validation-message')).toContainText('JSON inválido');
+  await page.locator('#request').fill(Array.from({length: 200}, (_, i) => `"line ${i}"`).join('\n'));
+  await page.locator('#request').evaluate(node => { node.scrollTop = 400; node.dispatchEvent(new Event('scroll')); });
+  const offsets = await page.evaluate(() => [document.getElementById('request').scrollTop, document.getElementById('request-lines').scrollTop]);
+  expect(offsets[0]).toBeGreaterThan(0);
+  expect(offsets[0]).toBe(offsets[1]);
+  await page.locator('#clear').click();
+  await expect(page.locator('#request-lines')).toHaveText('1');
+  await page.locator('#example').click();
+  expect((await page.locator('#request-lines').textContent()).split('\n').length).toBeGreaterThan(1);
+  expect(jobs).toBe(0);
+});
+
+test('editing input ignores an obsolete validation response', async ({ page }) => {
+  let release;
+  let requested;
+  const pending = new Promise(resolve => { requested = resolve; });
+  await page.route('**/playground/api/validate', async route => {
+    requested();
+    await new Promise(resolve => { release = resolve; });
+    await route.fulfill({json: {valid: true}}).catch(() => {});
+  });
+  await page.goto('/playground');
+  await page.locator('#request').fill(requestBody);
+  await page.locator('#validate-json').click();
+  await pending;
+  await page.locator('#request').fill('{}');
+  release();
+  await expect(page.locator('#validate-json')).toBeEnabled();
+  await expect(page.locator('#validation-message')).toBeHidden();
+});

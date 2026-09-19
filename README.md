@@ -52,6 +52,8 @@ Las cuotas se comparten por proveedor/credencial y endpoint. Un arranque frío e
 
 Abrir `/playground` en el mismo servicio (por ejemplo, `http://127.0.0.1:8080/playground`). Pegar el request completo, incluidas las credenciales del proveedor si se requieren, y pulsar **Ejecutar request**. La página sigue el estado y muestra el resultado al terminar; el modo árbol permite expandir objetos/arrays y el modo raw conserva el texto recibido, de solo lectura y copiable.
 
+El botón **Validar JSON** comprueba sintaxis, schema y referencias sin crear un job ni consultar al proveedor. Indica si el input cumple el contrato y muestra el campo o la ubicación del error cuando están disponibles. Los números de línea del editor no son seleccionables; al editar se descarta el diagnóstico anterior.
+
 La depuración muestra el request enviado y las respuestas HTTP de creación, estado y resultado. Detener el seguimiento no cancela el job; se puede retomar mediante su ID. No hay historial ni credenciales guardadas en el navegador. El ejemplo de la página usa un proveedor ilustrativo: adaptar URL, selector y credenciales a un destino permitido por la configuración.
 
 El playground está **abierto para uso local** y sus endpoints `/playground/api/executions` usan el owner reservado `system:playground`, compartido entre visitantes. Quien pueda acceder puede crear jobs y consultar los jobs de esa identidad si conoce su ID. Mantener el servicio en la red local prevista. `/v1/executions` sigue autenticado y no permite leer estos jobs con otro owner. Las cuotas, límites, validación y egress siguen aplicando. No hay tokens automáticos expuestos ni autenticación configurable por `.env` en esta versión.

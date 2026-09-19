@@ -17,6 +17,7 @@ func (s *Server) registerPlayground(mux *http.ServeMux) {
 	protection.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "FORBIDDEN", "")
 	}))
+	mux.Handle("POST /playground/api/validate", protection.Handler(http.HandlerFunc(local.validateRequest)))
 	mux.Handle("POST /playground/api/executions", protection.Handler(http.HandlerFunc(local.createExecution)))
 	mux.HandleFunc("GET /playground/api/executions/{id}", local.getExecution)
 	mux.HandleFunc("GET /playground/api/executions/{id}/result", local.getResult)
