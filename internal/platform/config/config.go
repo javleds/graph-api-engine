@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/javleds/api-engine/internal/definition/application"
 	"github.com/javleds/api-engine/internal/definition/domain"
+	"net/url"
 	"path"
 	"strings"
 )
@@ -71,7 +72,11 @@ func (c *Config) Validate() error {
 	if c.Observability.MetricsPath == "" || c.Observability.MetricsPath[0] != '/' {
 		return fmt.Errorf("metrics path must be absolute")
 	}
-	metricsPath := path.Clean(c.Observability.MetricsPath)
+	decodedPath, err := url.PathUnescape(c.Observability.MetricsPath)
+	if err != nil {
+		return fmt.Errorf("metrics path has invalid escaping")
+	}
+	metricsPath := path.Clean(decodedPath)
 	if metricsPath == "/playground" || strings.HasPrefix(metricsPath, "/playground/") {
 		return fmt.Errorf("metrics path conflicts with playground routes")
 	}

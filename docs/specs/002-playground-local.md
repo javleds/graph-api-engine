@@ -74,3 +74,9 @@ Ninguna para esta entrega; credenciales configurables se implementarán después
 3. Implementar formulario, snapshots, consultas secuenciales y diagnósticos; validar errores/estados y protección frente a respuestas obsoletas.
 4. Incorporar visor preciso lazy, alternancia raw y copia; verificar datos grandes y HTML literal.
 5. Agregar pruebas navegador y flujo local real; actualizar README/comandos y comprobar contenedor.
+
+## Evidencia de cierre
+
+Implementados los cinco pasos. `make check` pasó con pruebas normales y detector de carreras. Playwright verificó 26 casos de escritorio/mobile (24 de la suite general y dos regresiones focalizadas de actualización de webhook). Se inspeccionaron capturas de ambos layouts y del visor interactivo. El contenedor sirvió HTML/CSS/JS embebidos y confirmó la separación entre playground abierto y API autenticada.
+
+La revisión corrigió una carrera al actualizar webhook durante la descarga del resultado y una colisión de métricas con paths escapados. Ambas tienen regresión. Las dependencias Playwright son exclusivas de desarrollo y están fijadas en package-lock.json.

@@ -25,3 +25,7 @@ fuzz:
 	go test ./internal/definition/domain -run='^$$' -fuzz=FuzzPathBinding -fuzztime=2s
 	go test ./internal/fetch/application -run='^$$' -fuzz=FuzzRequestURLBoundary -fuzztime=2s
 	go test ./internal/definition/infrastructure/schema -run='^$$' -fuzz=FuzzDecodeJSON -fuzztime=2s
+
+.PHONY: playground-test
+playground-test:
+	npm run test:playground

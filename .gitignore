@@ -7,3 +7,7 @@
 *.db-wal
 .DS_Store
 /config/config.json
+
+/node_modules/
+/test-results/
+/playwright-report/

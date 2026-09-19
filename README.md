@@ -48,6 +48,26 @@ Consultar `GET /v1/executions/{id}` y `GET /v1/executions/{id}/result` con el mi
 
 Las cuotas se comparten por proveedor/credencial y endpoint. Un arranque frío espera la ventana conservadora definida en §14 antes de enviar. Configurar grupos administrados cuando varios tokens u origins compartan una cuota real. Caché y flights evitan intentos físicos sin eliminar relaciones de salida.
 
+## Playground local
+
+Abrir `/playground` en el mismo servicio (por ejemplo, `http://127.0.0.1:8080/playground`). Pegar el request completo, incluidas las credenciales del proveedor si se requieren, y pulsar **Ejecutar request**. La página sigue el estado y muestra el resultado al terminar; el modo árbol permite expandir objetos/arrays y el modo raw conserva el texto recibido, de solo lectura y copiable.
+
+La depuración muestra el request enviado y las respuestas HTTP de creación, estado y resultado. Detener el seguimiento no cancela el job; se puede retomar mediante su ID. No hay historial ni credenciales guardadas en el navegador. El ejemplo de la página usa un proveedor ilustrativo: adaptar URL, selector y credenciales a un destino permitido por la configuración.
+
+El playground está **abierto para uso local** y sus endpoints `/playground/api/executions` usan el owner reservado `system:playground`, compartido entre visitantes. Quien pueda acceder puede crear jobs y consultar los jobs de esa identidad si conoce su ID. Mantener el servicio en la red local prevista. `/v1/executions` sigue autenticado y no permite leer estos jobs con otro owner. Las cuotas, límites, validación y egress siguen aplicando. No hay tokens automáticos expuestos ni autenticación configurable por `.env` en esta versión.
+
+Los webhooks mantienen su formato y links `/v1`; estos no dan acceso anónimo al resultado. Para una ejecución del playground, consultar su ID desde la página o `/playground/api/executions/{id}`. Los assets se incluyen en el binario y contenedor, sin CDN ni proceso frontend adicional. Navegadores sin soporte para conservar los literales numéricos usan raw para evitar redondear IDs grandes.
+
+Pruebas de navegador (Node.js 22 o posterior, solo desarrollo):
+
+```sh
+npm ci
+npx playwright install chromium
+make playground-test
+```
+
+La suite inicia el servicio y un proveedor controlado en loopback con SQLite y claves temporales. No usa APIs ni secretos reales. Véase [la especificación del playground](docs/specs/002-playground-local.md).
+
 ## Operación
 
 `/health/live` indica vida del proceso y `/health/ready` verifica almacenamiento crítico y readiness. Las métricas requieren `metrics:read`; los logs JSON no incluyen bodies ni credenciales.
