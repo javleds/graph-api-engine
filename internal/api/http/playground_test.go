@@ -87,7 +87,7 @@ func TestPlaygroundCrossOriginAndPage(t *testing.T) {
 
 func TestPlaygroundAssetsAreExplicitAndEmbedded(t *testing.T) {
 	h, _, _ := newTestAPI(t)
-	for _, name := range []string{"playground.css", "playground.js"} {
+	for _, name := range []string{"playground.css", "playground.js", "json-viewer.js"} {
 		got := request(t, h, "GET", "/playground/assets/"+name, nil, "", "")
 		if got.Code != 200 || got.Body.Len() == 0 || got.Header().Get("X-Content-Type-Options") != "nosniff" {
 			t.Fatalf("%s: %d", name, got.Code)

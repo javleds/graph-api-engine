@@ -1,17 +1,74 @@
+import { renderJSON } from "./json-viewer.js";
+
 const $ = (id) => document.getElementById(id);
-const elements = Object.fromEntries(['request', 'execute', 'clear', 'stop', 'resume', 'execution-id', 'status', 'tracking-state', 'execution-meta', 'progress', 'message', 'webhook', 'response-label', 'response-empty', 'response-raw', 'copy', 'debug'].map((id) => [id, $(id)]));
-const labels = {pending: '◷ Pendiente', running: '◷ En ejecución', completed: '✓ Completado', completed_with_errors: '△ Completado con errores', failed: '× Fallido'};
-const counterLabels = {successfulRootCalls: 'raíces completas', partialRootCalls: 'raíces parciales', failedRootCalls: 'raíces fallidas', logicalRequests: 'requests lógicos', httpAttempts: 'intentos HTTP', cacheHits: 'aciertos de caché', coalescedRequests: 'requests compartidos', retries: 'reintentos', completedRootItems: 'items completos', nodeFailures: 'errores de nodos', skippedSubtrees: 'subárboles omitidos'};
-const example = {definition: {version: 1, api: {baseUrl: 'https://example.com/api', limits: {requests: 100, per: '1m'}}, calls: [{name: 'items', type: 'collection', select: 'data', request: {method: 'GET', path: '/items'}}]}};
+const elements = Object.fromEntries(
+  [
+    "request",
+    "execute",
+    "clear",
+    "stop",
+    "resume",
+    "execution-id",
+    "status",
+    "tracking-state",
+    "execution-meta",
+    "progress",
+    "message",
+    "webhook",
+    "response-label",
+    "response-empty",
+    "response-raw",
+    "copy",
+    "debug",
+  ].map((id) => [id, $(id)]),
+);
+const labels = {
+  pending: "◷ Pendiente",
+  running: "◷ En ejecución",
+  completed: "✓ Completado",
+  completed_with_errors: "△ Completado con errores",
+  failed: "× Fallido",
+};
+const counterLabels = {
+  successfulRootCalls: "raíces completas",
+  partialRootCalls: "raíces parciales",
+  failedRootCalls: "raíces fallidas",
+  logicalRequests: "requests lógicos",
+  httpAttempts: "intentos HTTP",
+  cacheHits: "aciertos de caché",
+  coalescedRequests: "requests compartidos",
+  retries: "reintentos",
+  completedRootItems: "items completos",
+  nodeFailures: "errores de nodos",
+  skippedSubtrees: "subárboles omitidos",
+};
+const example = {
+  definition: {
+    version: 1,
+    api: {
+      baseUrl: "https://example.com/api",
+      limits: { requests: 100, per: "1m" },
+    },
+    calls: [
+      {
+        name: "items",
+        type: "collection",
+        select: "data",
+        request: { method: "GET", path: "/items" },
+      },
+    ],
+  },
+};
 let generation = 0;
 let controller = null;
 let timer = null;
 let tracking = false;
-let currentID = '';
+let currentID = "";
 let rawResponse = null;
+let treeAvailable = false;
 const exchanges = new Map();
 
-function message(text = '') {
+function message(text = "") {
   elements.message.textContent = text;
   elements.message.hidden = !text;
 }
@@ -20,7 +77,8 @@ function setTracking(active, text) {
   elements.execute.disabled = active;
   elements.clear.disabled = active;
   elements.stop.disabled = !active;
-  elements['tracking-state'].textContent = text;
+  if ($("refresh-webhook")) $("refresh-webhook").disabled = active;
+  elements["tracking-state"].textContent = text;
 }
 function beginSession() {
   generation += 1;
@@ -31,38 +89,67 @@ function beginSession() {
 }
 function stopTracking() {
   beginSession();
-  setTracking(false, 'Seguimiento detenido; el job continúa en el servidor.');
+  setTracking(false, "Seguimiento detenido; el job continúa en el servidor.");
 }
 function resetResponse() {
+  treeAvailable = false;
+  $("response-modes").hidden = true;
+  $("response-tree").hidden = true;
+  $("response-tree").replaceChildren();
   rawResponse = null;
-  elements['response-raw'].value = '';
-  elements['response-raw'].hidden = true;
-  elements['response-empty'].hidden = false;
+  elements["response-raw"].value = "";
+  elements["response-raw"].hidden = true;
+  elements["response-empty"].hidden = false;
   elements.copy.disabled = true;
-  elements['response-label'].textContent = 'El resultado aparecerá cuando termine el job.';
+  elements["response-label"].textContent =
+    "El resultado aparecerá cuando termine el job.";
 }
 function displayResponse(raw, label) {
   rawResponse = raw;
-  elements['response-raw'].value = raw;
-  elements['response-raw'].hidden = false;
-  elements['response-empty'].hidden = true;
+  elements["response-raw"].value = raw;
+  elements["response-raw"].hidden = false;
+  elements["response-empty"].hidden = true;
   elements.copy.disabled = false;
-  elements['response-label'].textContent = label;
+  const fallback = renderJSON($("response-tree"), raw);
+  treeAvailable = !fallback;
+  $("response-modes").hidden = false;
+  $("mode-tree").disabled = !treeAvailable;
+  setResponseMode(treeAvailable ? "tree" : "raw");
+  elements["response-label"].textContent = fallback
+    ? `${label}. ${fallback}`
+    : label;
+}
+function setResponseMode(mode) {
+  const tree = mode === "tree" && treeAvailable;
+  $("response-tree").hidden = !tree;
+  elements["response-raw"].hidden = tree;
+  $("mode-tree").setAttribute("aria-pressed", String(tree));
+  $("mode-raw").setAttribute("aria-pressed", String(!tree));
 }
 function renderDebug() {
-  const open = new Set([...elements.debug.querySelectorAll('details[open]')].map((node) => node.dataset.key));
+  const open = new Set(
+    [...elements.debug.querySelectorAll("details[open]")].map(
+      (node) => node.dataset.key,
+    ),
+  );
   elements.debug.replaceChildren();
   for (const [key, exchange] of exchanges) {
-    const details = document.createElement('details');
-    details.className = 'debug-entry';
+    const details = document.createElement("details");
+    details.className = "debug-entry";
     details.dataset.key = key;
     details.open = open.has(key);
-    const summary = document.createElement('summary');
-    summary.textContent = `${exchange.title} · ${exchange.status ?? 'texto original'}`;
-    const meta = document.createElement('div');
-    meta.className = 'debug-meta';
-    meta.textContent = [exchange.method && `${exchange.method} ${exchange.url}`, exchange.duration != null && `${exchange.duration} ms`, ...(exchange.headers ?? [])].filter(Boolean).join('\n');
-    const body = document.createElement('pre');
+    const summary = document.createElement("summary");
+    summary.textContent = `${exchange.title} · ${exchange.status ?? "texto original"}`;
+    const meta = document.createElement("div");
+    meta.className = "debug-meta";
+    meta.textContent = [
+      exchange.method && `${exchange.method} ${exchange.url}`,
+      exchange.duration != null && `${exchange.duration} ms`,
+      ...(exchange.headers ?? []),
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const body = document.createElement("pre");
     body.textContent = exchange.body;
     details.append(summary, meta, body);
     elements.debug.append(details);
@@ -71,62 +158,97 @@ function renderDebug() {
 async function request(key, title, url, options, session) {
   const start = performance.now();
   let response;
-  let body = '';
+  let body = "";
   try {
-    response = await fetch(url, {...options, signal: controller.signal, cache: 'no-store'});
+    response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      cache: "no-store",
+    });
     body = await response.text();
   } catch (error) {
-    if (session !== generation || error.name === 'AbortError') throw error;
-    exchanges.set(key, {title, method: options.method ?? 'GET', url, status: 'Error de transporte', duration: Math.round(performance.now() - start), body: error.message});
+    if (session !== generation || error.name === "AbortError") throw error;
+    exchanges.set(key, {
+      title,
+      method: options.method ?? "GET",
+      url,
+      status: "Error de transporte",
+      duration: Math.round(performance.now() - start),
+      body: error.message,
+    });
     renderDebug();
-    throw new Error('No se pudo completar la consulta. El estado del job es desconocido; puedes reanudar por ID. El POST no se repetirá automáticamente.');
+    throw new Error(
+      "No se pudo completar la consulta. El estado del job es desconocido; puedes reanudar por ID. El POST no se repetirá automáticamente.",
+    );
   }
-  if (session !== generation) throw new DOMException('Sesión reemplazada', 'AbortError');
-  const headers = ['X-Request-Id', 'Location', 'Retry-After'].flatMap((name) => response.headers.has(name) ? [`${name}: ${response.headers.get(name)}`] : []);
-  exchanges.set(key, {title, method: options.method ?? 'GET', url, status: `HTTP ${response.status}`, duration: Math.round(performance.now() - start), body, headers});
+  if (session !== generation)
+    throw new DOMException("Sesión reemplazada", "AbortError");
+  const headers = ["X-Request-Id", "Location", "Retry-After"].flatMap((name) =>
+    response.headers.has(name)
+      ? [`${name}: ${response.headers.get(name)}`]
+      : [],
+  );
+  exchanges.set(key, {
+    title,
+    method: options.method ?? "GET",
+    url,
+    status: `HTTP ${response.status}`,
+    duration: Math.round(performance.now() - start),
+    body,
+    headers,
+  });
   renderDebug();
   if (!response.ok) {
     displayResponse(body, `Error HTTP ${response.status} · ${title}`);
-    throw new Error(`${title}: HTTP ${response.status}. Revisa el body y los headers en Depuración HTTP.`);
+    throw new Error(
+      `${title}: HTTP ${response.status}. Revisa el body y los headers en Depuración HTTP.`,
+    );
   }
   return body;
 }
 function parsedObject(raw) {
   const value = JSON.parse(raw);
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('La respuesta de la API no es un objeto JSON válido.');
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("La respuesta de la API no es un objeto JSON válido.");
   return value;
 }
 function addMeta(label, value) {
-  const item = document.createElement('div');
-  const term = document.createElement('dt');
-  const detail = document.createElement('dd');
+  const item = document.createElement("div");
+  const term = document.createElement("dt");
+  const detail = document.createElement("dd");
   term.textContent = label;
   detail.textContent = value;
   item.append(term, detail);
-  elements['execution-meta'].append(item);
+  elements["execution-meta"].append(item);
 }
 function formatDate(value) {
-  if (!value) return '—';
+  if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString('es');
+  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString("es");
 }
 function renderStatus(status) {
-  elements.status.textContent = labels[status.status] ?? `? ${status.status ?? 'Estado desconocido'}`;
-  elements.status.dataset.status = status.status ?? '';
-  elements['execution-meta'].replaceChildren();
-  addMeta('ID de ejecución', currentID);
-  addMeta('Creación', formatDate(status.createdAt));
-  addMeta('Inicio', formatDate(status.startedAt));
-  addMeta('Fin', formatDate(status.finishedAt));
+  elements.status.textContent =
+    labels[status.status] ?? `? ${status.status ?? "Estado desconocido"}`;
+  elements.status.dataset.status = status.status ?? "";
+  elements["execution-meta"].replaceChildren();
+  addMeta("ID de ejecución", currentID);
+  addMeta("Creación", formatDate(status.createdAt));
+  addMeta("Inicio", formatDate(status.startedAt));
+  addMeta("Fin", formatDate(status.finishedAt));
   const start = Date.parse(status.startedAt ?? status.createdAt);
   const end = status.finishedAt ? Date.parse(status.finishedAt) : Date.now();
-  addMeta('Tiempo transcurrido', Number.isFinite(start) && Number.isFinite(end) ? `${Math.max(0, (end - start) / 1000).toFixed(1)} s` : '—');
-  addMeta('Última actualización', new Date().toLocaleTimeString('es'));
+  addMeta(
+    "Tiempo transcurrido",
+    Number.isFinite(start) && Number.isFinite(end)
+      ? `${Math.max(0, (end - start) / 1000).toFixed(1)} s`
+      : "—",
+  );
+  addMeta("Última actualización", new Date().toLocaleTimeString("es"));
   elements.progress.replaceChildren();
   for (const [key, value] of Object.entries(status.progress ?? {})) {
-    const item = document.createElement('span');
-    item.className = 'counter';
-    const count = document.createElement('strong');
+    const item = document.createElement("span");
+    item.className = "counter";
+    const count = document.createElement("strong");
     count.textContent = value;
     item.append(count, counterLabels[key] ?? key);
     elements.progress.append(item);
@@ -137,64 +259,93 @@ function renderWebhook(status) {
   elements.webhook.replaceChildren();
   elements.webhook.hidden = !status.webhook;
   if (!status.webhook) return;
-  const label = document.createElement('span');
+  const label = document.createElement("span");
   label.textContent = `Webhook: ${status.webhook.status} · ${status.webhook.attempts} intentos`;
   elements.webhook.append(label);
-  if (['completed', 'completed_with_errors', 'failed'].includes(status.status)) {
-    const button = document.createElement('button');
-    button.className = 'secondary';
-    button.textContent = 'Actualizar webhook';
-    button.addEventListener('click', () => startTracking(currentID, false));
+  if (
+    ["completed", "completed_with_errors", "failed"].includes(status.status)
+  ) {
+    const button = document.createElement("button");
+    button.className = "secondary";
+    button.id = "refresh-webhook";
+    button.disabled = tracking;
+    button.textContent = "Actualizar webhook";
+    button.addEventListener("click", () => startTracking(currentID, false));
     elements.webhook.append(button);
   }
 }
 function validExecutionID(id) {
-  return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  return (
+    typeof id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  );
 }
 function clearStatus() {
-  elements['execution-meta'].replaceChildren();
+  elements["execution-meta"].replaceChildren();
   elements.progress.replaceChildren();
   elements.webhook.hidden = true;
-  elements.status.textContent = '○ Sin estado disponible';
+  elements.status.textContent = "○ Sin estado disponible";
   delete elements.status.dataset.status;
 }
 function fail(error, session) {
-  if (session !== generation || error.name === 'AbortError') return;
+  if (session !== generation || error.name === "AbortError") return;
   if (!currentID) {
-    elements.status.textContent = '× No se creó una ejecución';
-    elements.status.dataset.status = 'failed';
+    elements.status.textContent = "× Sin ejecución confirmada";
+    elements.status.dataset.status = "failed";
   }
-  setTracking(false, 'Seguimiento pausado');
+  setTracking(false, "Seguimiento pausado");
   message(error.message);
 }
 async function poll(session, loadResult = true) {
   try {
-    const raw = await request('status', 'Último estado', `/playground/api/executions/${encodeURIComponent(currentID)}`, {}, session);
+    const raw = await request(
+      "status",
+      "Último estado",
+      `/playground/api/executions/${encodeURIComponent(currentID)}`,
+      {},
+      session,
+    );
     const status = parsedObject(raw);
     renderStatus(status);
-    if (status.status === 'failed') {
-      displayResponse(raw, 'Ejecución fallida · respuesta terminal de estado');
-      setTracking(false, 'Ejecución terminada');
+    if (status.status === "failed") {
+      displayResponse(raw, "Ejecución fallida · respuesta terminal de estado");
+      setTracking(false, "Ejecución terminada");
       return;
     }
-    if (['completed', 'completed_with_errors'].includes(status.status)) {
+    if (["completed", "completed_with_errors"].includes(status.status)) {
       if (loadResult) {
-        elements['tracking-state'].textContent = 'Obteniendo resultado…';
-        const result = await request('result', 'Resultado', `/playground/api/executions/${encodeURIComponent(currentID)}/result`, {}, session);
-        displayResponse(result, status.status === 'completed' ? 'Resultado completo · envelope de la API' : 'Resultado parcial · incluye errores y resumen por raíz');
+        elements["tracking-state"].textContent = "Obteniendo resultado…";
+        const result = await request(
+          "result",
+          "Resultado",
+          `/playground/api/executions/${encodeURIComponent(currentID)}/result`,
+          {},
+          session,
+        );
+        displayResponse(
+          result,
+          status.status === "completed"
+            ? "Resultado completo · envelope de la API"
+            : "Resultado parcial · incluye errores y resumen por raíz",
+        );
       }
-      setTracking(false, 'Ejecución terminada');
+      setTracking(false, "Ejecución terminada");
       return;
     }
-    if (!['pending', 'running'].includes(status.status)) throw new Error('La API devolvió un estado desconocido. Revisa la respuesta de estado.');
-    setTracking(true, 'Consultando estado cada segundo…');
+    if (!["pending", "running"].includes(status.status))
+      throw new Error(
+        "La API devolvió un estado desconocido. Revisa la respuesta de estado.",
+      );
+    setTracking(true, "Consultando estado cada segundo…");
     timer = setTimeout(() => poll(session, loadResult), 1000);
-  } catch (error) { fail(error, session); }
+  } catch (error) {
+    fail(error, session);
+  }
 }
 function startTracking(id, loadResult = true) {
   if (!validExecutionID(id)) {
-    message('El ID de ejecución debe ser un UUID válido.');
-    elements['execution-id'].focus();
+    message("El ID de ejecución debe ser un UUID válido.");
+    elements["execution-id"].focus();
     return;
   }
   const session = beginSession();
@@ -205,78 +356,111 @@ function startTracking(id, loadResult = true) {
     renderDebug();
   }
   currentID = id;
-  elements['execution-id'].value = id;
+  elements["execution-id"].value = id;
   message();
-  setTracking(true, 'Consultando ejecución…');
+  setTracking(true, "Consultando ejecución…");
   poll(session, loadResult);
 }
 async function execute() {
   if (tracking) return;
   const raw = elements.request.value;
-  try { JSON.parse(raw); } catch (error) { message(`JSON inválido: ${error.message}`); elements.request.focus(); return; }
+  try {
+    JSON.parse(raw);
+  } catch (error) {
+    message(`JSON inválido: ${error.message}`);
+    elements.request.focus();
+    return;
+  }
   const session = beginSession();
-  currentID = '';
-  elements['execution-id'].value = '';
+  currentID = "";
+  elements["execution-id"].value = "";
   resetResponse();
-  elements['execution-meta'].replaceChildren();
+  elements["execution-meta"].replaceChildren();
   elements.progress.replaceChildren();
   elements.webhook.hidden = true;
-  elements.status.textContent = '◷ Enviando request';
-  elements.status.dataset.status = 'pending';
+  elements.status.textContent = "◷ Enviando request";
+  elements.status.dataset.status = "pending";
   message();
-  setTracking(true, 'Creando ejecución…');
-  const headers = {'Content-Type': 'application/json'};
-  const idempotency = $('idempotency').value;
-  if (idempotency) headers['Idempotency-Key'] = idempotency;
+  setTracking(true, "Creando ejecución…");
+  const headers = { "Content-Type": "application/json" };
+  const idempotency = $("idempotency").value;
+  if (idempotency) headers["Idempotency-Key"] = idempotency;
   exchanges.clear();
-  exchanges.set('request', {title: 'Request enviado', method: 'POST', url: '/playground/api/executions', headers: Object.entries(headers).map(([key, value]) => `${key}: ${value}`), body: raw});
+  exchanges.set("request", {
+    title: "Request enviado",
+    method: "POST",
+    url: "/playground/api/executions",
+    headers: Object.entries(headers).map(([key, value]) => `${key}: ${value}`),
+    body: raw,
+  });
   renderDebug();
   try {
-    const body = await request('create', 'Creación', '/playground/api/executions', {method: 'POST', headers, body: raw}, session);
+    const body = await request(
+      "create",
+      "Creación",
+      "/playground/api/executions",
+      { method: "POST", headers, body: raw },
+      session,
+    );
     const created = parsedObject(body);
-    if (!validExecutionID(created.id)) throw new Error('La API no devolvió un ID de ejecución válido.');
+    if (!validExecutionID(created.id))
+      throw new Error("La API no devolvió un ID de ejecución válido.");
     currentID = created.id;
-    elements['execution-id'].value = currentID;
+    elements["execution-id"].value = currentID;
     renderStatus(created);
     await poll(session);
-  } catch (error) { fail(error, session); }
+  } catch (error) {
+    fail(error, session);
+  }
 }
-$('example').addEventListener('click', () => { elements.request.value = JSON.stringify(example, null, 2); message('Ejemplo cargado. Sustituye example.com por un proveedor permitido que devuelva JSON.'); });
-elements.execute.addEventListener('click', execute);
-elements.stop.addEventListener('click', stopTracking);
-$('resume-form').addEventListener('submit', (event) => {
+$("example").addEventListener("click", () => {
+  elements.request.value = JSON.stringify(example, null, 2);
+  message(
+    "Ejemplo cargado. Sustituye example.com por un proveedor permitido que devuelva JSON.",
+  );
+});
+elements.execute.addEventListener("click", execute);
+elements.stop.addEventListener("click", stopTracking);
+$("resume-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  const id = elements['execution-id'].value.trim();
+  const id = elements["execution-id"].value.trim();
   if (id) startTracking(id);
 });
-elements.clear.addEventListener('click', () => {
+elements.clear.addEventListener("click", () => {
   if (tracking) return;
   beginSession();
-  elements.request.value = '';
-  $('idempotency').value = '';
-  elements['execution-id'].value = '';
-  currentID = '';
+  elements.request.value = "";
+  $("idempotency").value = "";
+  elements["execution-id"].value = "";
+  currentID = "";
   exchanges.clear();
   renderDebug();
   resetResponse();
-  elements['execution-meta'].replaceChildren();
+  elements["execution-meta"].replaceChildren();
   elements.progress.replaceChildren();
   elements.webhook.hidden = true;
-  elements.status.textContent = '○ Sin ejecución';
+  elements.status.textContent = "○ Sin ejecución";
   delete elements.status.dataset.status;
-  setTracking(false, 'Listo para ejecutar');
+  setTracking(false, "Listo para ejecutar");
   message();
 });
-elements.copy.addEventListener('click', async () => {
+elements.copy.addEventListener("click", async () => {
   if (rawResponse === null) return;
   try {
     await navigator.clipboard.writeText(rawResponse);
-    elements['response-label'].textContent = 'JSON original copiado al portapapeles.';
+    elements["response-label"].textContent =
+      "JSON original copiado al portapapeles.";
   } catch {
-    elements['response-raw'].hidden = false;
-    elements['response-raw'].focus();
-    elements['response-raw'].select();
-    elements['response-label'].textContent = 'Texto seleccionado. Usa Ctrl+C o ⌘C para copiar.';
+    setResponseMode("raw");
+    elements["response-raw"].focus();
+    elements["response-raw"].select();
+    elements["response-label"].textContent =
+      "Texto seleccionado. Usa Ctrl+C o ⌘C para copiar.";
   }
 });
-window.addEventListener('pagehide', () => { controller?.abort(); clearTimeout(timer); });
+$("mode-tree").addEventListener("click", () => setResponseMode("tree"));
+$("mode-raw").addEventListener("click", () => setResponseMode("raw"));
+window.addEventListener("pagehide", () => {
+  controller?.abort();
+  clearTimeout(timer);
+});

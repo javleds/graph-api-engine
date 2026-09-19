@@ -1,16 +1,150 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Playground · API Engine</title><link rel="stylesheet" href="/playground/assets/playground.css"><script type="module" src="/playground/assets/playground.js"></script></head>
-<body>
-<header class="masthead"><a href="/playground" class="brand"><span class="brand-icon" aria-hidden="true">↳</span> API ENGINE</a><span class="local-label">ENTORNO LOCAL</span></header>
-<main>
-<div class="intro"><p class="eyebrow">EXECUTION PLAYGROUND</p><h1>Del request al resultado.</h1><p>Construye tu grafo, ejecuta sus llamadas y explora la respuesta completa.</p></div>
-<section class="status-panel" aria-label="Estado de ejecución"><div class="status-top"><span id="status" class="badge" role="status">○ Sin ejecución</span><span id="tracking-state">Listo para ejecutar</span><button id="stop" class="subtle" disabled>Detener seguimiento</button></div><dl id="execution-meta" class="metadata"></dl><div id="progress" class="counters"></div><div id="webhook" class="webhook" hidden></div><div id="message" class="message" role="alert" hidden></div></section>
-<div class="workspace">
-<section class="panel input-panel" aria-labelledby="request-title"><div class="panel-heading"><div><span class="step">01</span><h2 id="request-title">Request</h2></div><button id="example" class="subtle">Cargar ejemplo</button></div><div class="panel-body"><label for="request">JSON de ejecución</label><p class="hint">Se envía el texto original. Configura un destino permitido por el servicio.</p><textarea id="request" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder='{"definition": {…}}'></textarea><label for="idempotency">Idempotency-Key <span class="optional">opcional</span></label><input id="idempotency" autocomplete="off" placeholder="Una clave para reutilizar la misma ejecución"><div class="actions"><button id="execute" class="primary">Ejecutar request <span aria-hidden="true">↗</span></button><button id="clear" class="subtle">Limpiar</button></div></div></section>
-<section class="panel output-panel" aria-labelledby="response-title"><div class="panel-heading"><div><span class="step">02</span><h2 id="response-title">Respuesta</h2></div><button id="copy" class="subtle" disabled>Copiar JSON</button></div><div class="panel-body"><p id="response-label" class="hint">El resultado aparecerá cuando termine el job.</p><div id="response-empty" class="empty-state"><span aria-hidden="true">{ }</span><strong>Tu respuesta, aquí.</strong><p>Ejecuta un request o retoma una ejecución por su ID.</p></div><label for="response-raw" class="sr-only">Respuesta JSON original (solo lectura)</label><textarea id="response-raw" readonly spellcheck="false" hidden></textarea></div></section>
-</div>
-<section class="resume-panel" aria-labelledby="resume-title"><div><h2 id="resume-title">Retomar una ejecución</h2><p class="hint">Detener el seguimiento no cancela el job.</p></div><form id="resume-form"><label for="execution-id" class="sr-only">ID de ejecución</label><input id="execution-id" placeholder="ID de ejecución" required autocomplete="off"><button class="secondary" id="resume">Consultar / reanudar</button></form></section>
-<section class="debug-section" aria-labelledby="debug-title"><div class="section-heading"><h2 id="debug-title">Depuración HTTP</h2><span>Request enviado · creación · estado · resultado</span></div><p class="hint">Incluye datos sensibles del request solo en esta pestaña. No se guarda información en el navegador.</p><div id="debug"><p class="hint">Aún no hay intercambios HTTP.</p></div></section>
-<footer>API Engine · Playground local <span>Identidad compartida entre visitantes locales</span></footer>
-</main></body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Playground · API Engine</title>
+    <link rel="stylesheet" href="/playground/assets/playground.css" />
+    <script type="module" src="/playground/assets/playground.js"></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <a href="/playground" class="brand"
+        ><span class="brand-icon" aria-hidden="true">↳</span> API ENGINE</a
+      ><span class="local-label">ENTORNO LOCAL</span>
+    </header>
+    <main>
+      <div class="intro">
+        <p class="eyebrow">EXECUTION PLAYGROUND</p>
+        <h1>Del request al resultado.</h1>
+        <p>
+          Construye tu grafo, ejecuta sus llamadas y explora la respuesta
+          completa.
+        </p>
+      </div>
+      <section class="status-panel" aria-label="Estado de ejecución">
+        <div class="status-top">
+          <span id="status" class="badge" role="status">○ Sin ejecución</span
+          ><span id="tracking-state">Listo para ejecutar</span
+          ><button id="stop" class="subtle" disabled>
+            Detener seguimiento
+          </button>
+        </div>
+        <dl id="execution-meta" class="metadata"></dl>
+        <div id="progress" class="counters"></div>
+        <div id="webhook" class="webhook" hidden></div>
+        <div id="message" class="message" role="alert" hidden></div>
+      </section>
+      <div class="workspace">
+        <section class="panel input-panel" aria-labelledby="request-title">
+          <div class="panel-heading">
+            <div>
+              <span class="step">01</span>
+              <h2 id="request-title">Request</h2>
+            </div>
+            <button id="example" class="subtle">Cargar ejemplo</button>
+          </div>
+          <div class="panel-body">
+            <label for="request">JSON de ejecución</label>
+            <p class="hint">
+              Se envía el texto original. Configura un destino permitido por el
+              servicio.
+            </p>
+            <textarea
+              id="request"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              placeholder='{"definition": {…}}'
+            ></textarea
+            ><label for="idempotency"
+              >Idempotency-Key <span class="optional">opcional</span></label
+            ><input
+              id="idempotency"
+              autocomplete="off"
+              placeholder="Una clave para reutilizar la misma ejecución"
+            />
+            <div class="actions">
+              <button id="execute" class="primary">
+                Ejecutar request <span aria-hidden="true">↗</span></button
+              ><button id="clear" class="subtle">Limpiar</button>
+            </div>
+          </div>
+        </section>
+        <section class="panel output-panel" aria-labelledby="response-title">
+          <div class="panel-heading">
+            <div>
+              <span class="step">02</span>
+              <h2 id="response-title">Respuesta</h2>
+            </div>
+            <button id="copy" class="subtle" disabled>Copiar JSON</button>
+          </div>
+          <div class="panel-body">
+            <div
+              id="response-modes"
+              class="mode-switch"
+              role="group"
+              aria-label="Formato de respuesta"
+              hidden
+            >
+              <button id="mode-tree" aria-pressed="true">Interactivo</button
+              ><button id="mode-raw" aria-pressed="false">Raw JSON</button>
+            </div>
+            <p id="response-label" class="hint">
+              El resultado aparecerá cuando termine el job.
+            </p>
+            <div id="response-empty" class="empty-state">
+              <span aria-hidden="true">{ }</span
+              ><strong>Tu respuesta, aquí.</strong>
+              <p>Ejecuta un request o retoma una ejecución por su ID.</p>
+            </div>
+            <div
+              id="response-tree"
+              class="json-tree"
+              aria-label="Visor JSON interactivo"
+              hidden
+            ></div>
+            <label for="response-raw" class="sr-only"
+              >Respuesta JSON original (solo lectura)</label
+            ><textarea
+              id="response-raw"
+              readonly
+              spellcheck="false"
+              hidden
+            ></textarea>
+          </div>
+        </section>
+      </div>
+      <section class="resume-panel" aria-labelledby="resume-title">
+        <div>
+          <h2 id="resume-title">Retomar una ejecución</h2>
+          <p class="hint">Detener el seguimiento no cancela el job.</p>
+        </div>
+        <form id="resume-form">
+          <label for="execution-id" class="sr-only">ID de ejecución</label
+          ><input
+            id="execution-id"
+            placeholder="ID de ejecución"
+            required
+            autocomplete="off"
+          /><button class="secondary" id="resume">Consultar / reanudar</button>
+        </form>
+      </section>
+      <section class="debug-section" aria-labelledby="debug-title">
+        <div class="section-heading">
+          <h2 id="debug-title">Depuración HTTP</h2>
+          <span>Request enviado · creación · estado · resultado</span>
+        </div>
+        <p class="hint">
+          Incluye datos sensibles del request solo en esta pestaña. No se guarda
+          información en el navegador.
+        </p>
+        <div id="debug"><p class="hint">Aún no hay intercambios HTTP.</p></div>
+      </section>
+      <footer>
+        API Engine · Playground local
+        <span>Identidad compartida entre visitantes locales</span>
+      </footer>
+    </main>
+  </body>
+</html>
