@@ -10,6 +10,10 @@ import (
 
 func example(t *testing.T) []byte {
 	t.Helper()
+	t.Setenv("APP_PORT", "8080")
+	t.Setenv("APP_URL", "http://localhost:8080")
+	t.Setenv("PLAYGROUND_USERNAME", "test-user")
+	t.Setenv("PLAYGROUND_PASSWORD", "test-password")
 	data, err := os.ReadFile("../../../config/config.example.yml")
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +43,7 @@ func TestDefaultsRequireDeploymentSettings(t *testing.T) {
 	if _, err := Parse([]byte("{}")); err == nil {
 		t.Fatal("missing deployment settings accepted")
 	}
-	raw := "http:\n  publicBaseUrl: https://engine.example.com\nsecurity:\n  principalsFile: /absent/principals\n  identityKeyFile: /absent/identity\n  encryption:\n    activeKeyId: one\n    keyFiles:\n      one: /absent/key\n  egress:\n    upstreamAllowedOrigins: [https://example.com]\n    webhookAllowedOrigins: [https://consumer.example.com]\n"
+	raw := "http:\n  publicBaseUrl: https://engine.example.com\nsecurity:\n  principalsFile: /absent/principals\n  identityKeyFile: /absent/identity\n  encryption:\n    activeKeyId: one\n    keyFiles:\n      one: /absent/key\n  playground:\n    username: test\n    password: password\n  egress:\n    upstreamAllowedOrigins: [https://example.com]\n    webhookAllowedOrigins: [https://consumer.example.com]\n"
 	config, err := Parse([]byte(raw))
 	if err != nil {
 		t.Fatal(err)

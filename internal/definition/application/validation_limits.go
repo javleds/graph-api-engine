@@ -3,16 +3,15 @@ package application
 import "time"
 
 type ValidationLimits struct {
-	AllowAnyOriginForDevelopment bool
-	MaxDefinitionDepth           int
-	MaxDefinitionNodes           int
-	MaxChildrenPerNode           int
-	MaxRootCalls                 int
-	HTTPConcurrency              int
-	MaxTTL                       time.Duration
-	AllowHTTPForDevelopment      bool
-	UpstreamAllowedOrigins       []string
-	WebhookAllowedOrigins        []string
+	MaxDefinitionDepth      int
+	MaxDefinitionNodes      int
+	MaxChildrenPerNode      int
+	MaxRootCalls            int
+	HTTPConcurrency         int
+	MaxTTL                  time.Duration
+	AllowHTTPForDevelopment bool
+	UpstreamAllowedOrigins  []string
+	WebhookAllowedOrigins   []string
 }
 
 func DefaultValidationLimits() ValidationLimits {

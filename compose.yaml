@@ -4,7 +4,9 @@ services:
     build: .
     command: ["serve", "--config", "/etc/api-engine/config.yml"]
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${APP_PORT:-8080}:${APP_PORT:-8080}"
+    env_file:
+      - .env
     volumes:
       - engine-data:/data
       - type: bind

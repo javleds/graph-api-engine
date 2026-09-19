@@ -6,7 +6,7 @@ import (
 )
 
 func TestPolicyRejectsMixedDNSAndMappedPrivateIP(t *testing.T) {
-	policy, err := NewPolicy([]string{"https://example.com"}, nil, false, false)
+	policy, err := NewPolicy([]string{"https://example.com"}, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,11 +26,8 @@ func TestPolicyRejectsMixedDNSAndMappedPrivateIP(t *testing.T) {
 	}
 }
 
-func TestDevelopmentOriginBypassPreservesNetworkRestrictions(t *testing.T) {
-	if _, err := NewPolicy(nil, nil, false, true); err == nil {
-		t.Fatal("open origins without development")
-	}
-	policy, err := NewPolicy([]string{"https://listed.example"}, nil, true, true)
+func TestWildcardOriginPreservesNetworkRestrictions(t *testing.T) {
+	policy, err := NewPolicy([]string{"*"}, nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}

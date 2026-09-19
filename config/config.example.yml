@@ -1,8 +1,8 @@
 version: 1
 mode: local
 http:
-  address: ":8080"
-  publicBaseUrl: "https://engine.example.com"
+  address: "0.0.0.0:${APP_PORT}"
+  publicBaseUrl: "${APP_URL}"
   readHeaderTimeout: "5s"
   readTimeout: "15s"
   writeTimeout: "30s"
@@ -99,14 +99,16 @@ security:
     activeKeyId: key-2026-09
     keyFiles:
       key-2026-09: "/run/secrets/engine-encryption-key"
+  playground:
+    username: "${PLAYGROUND_USERNAME}"
+    password: "${PLAYGROUND_PASSWORD}"
   egress:
     upstreamAllowedOrigins:
       - "https://example.com"
     webhookAllowedOrigins:
       - "https://consumer.example.com"
     allowedPrivateCIDRs: []
-    allowHTTPForDevelopment: false
-    allowAnyOriginForDevelopment: false
+    allowHTTPForDevelopment: true
 maintenance:
   interval: "60s"
   batchSize: 200

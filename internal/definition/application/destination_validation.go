@@ -7,9 +7,10 @@ import (
 	"unicode"
 
 	"github.com/javleds/api-engine/internal/definition/domain"
+	"github.com/javleds/api-engine/internal/platform/egresspattern"
 )
 
-func validateURL(raw string, base, allowHTTP, allowAnyOrigin bool, origins []string) error {
+func validateURL(raw string, base, allowHTTP bool, origins []string) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Hostname() == "" || u.User != nil || u.Fragment != "" || strings.Contains(raw, "#") || (!allowHTTP && u.Scheme != "https") || (u.Scheme != "https" && u.Scheme != "http") {
 		return domain.Invalid("/url", "destination must be an absolute permitted HTTP URL")
@@ -20,17 +21,9 @@ func validateURL(raw string, base, allowHTTP, allowAnyOrigin bool, origins []str
 	if strings.IndexFunc(raw, unicode.IsControl) >= 0 {
 		return domain.Invalid("/url", "control character in URL")
 	}
-	if len(origins) > 0 && !(allowHTTP && allowAnyOrigin) {
-		origin := strings.ToLower(u.Scheme + "://" + u.Host)
-		found := false
-		for _, allowed := range origins {
-			if strings.EqualFold(strings.TrimRight(allowed, "/"), origin) {
-				found = true
-			}
-		}
-		if !found {
-			return &domain.ValidationError{Code: "EGRESS_DENIED", Message: "destination origin is not allowed"}
-		}
+	patterns, patternErr := egresspattern.ParseAll(origins, allowHTTP)
+	if len(origins) > 0 && (patternErr != nil || !egresspattern.Matches(patterns, u)) {
+		return &domain.ValidationError{Code: "EGRESS_DENIED", Message: "destination origin is not allowed"}
 	}
 	return nil
 }
@@ -83,7 +76,7 @@ func reservedHeader(name string, webhook bool) bool {
 	return webhook && (name == "content-type" || name == "x-engine-event-id" || name == "x-engine-timestamp" || name == "x-engine-signature")
 }
 func validateWebhook(w *domain.Webhook, limits ValidationLimits) error {
-	if err := validateURL(w.URL, false, limits.AllowHTTPForDevelopment, limits.AllowAnyOriginForDevelopment, limits.WebhookAllowedOrigins); err != nil {
+	if err := validateURL(w.URL, false, limits.AllowHTTPForDevelopment, limits.WebhookAllowedOrigins); err != nil {
 		return err
 	}
 	if w.Method == "" {

@@ -20,7 +20,7 @@ import (
 
 func localSender(t *testing.T, server *httptest.Server) *HTTPWebhookSender {
 	t.Helper()
-	policy, err := egress.NewPolicy([]string{server.URL}, []string{"127.0.0.0/8"}, true, false)
+	policy, err := egress.NewPolicy([]string{server.URL}, []string{"127.0.0.0/8"}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestBearerBasicAndCustomAuthentication(t *testing.T) {
 func TestBlockedDestinationIsNotSent(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Error("blocked destination reached") }))
 	defer server.Close()
-	policy, err := egress.NewPolicy([]string{server.URL}, nil, true, false)
+	policy, err := egress.NewPolicy([]string{server.URL}, nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}

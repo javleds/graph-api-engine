@@ -5,5 +5,11 @@ type SecurityConfig struct {
 	PrincipalsFile        string           `json:"principalsFile"`
 	IdentityKeyFile       string           `json:"identityKeyFile"`
 	Encryption            EncryptionConfig `json:"encryption"`
+	Playground            PlaygroundConfig `json:"playground"`
 	Egress                EgressConfig     `json:"egress"`
+}
+
+type PlaygroundConfig struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }

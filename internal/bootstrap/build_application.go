@@ -94,7 +94,7 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 	if err = outbox.Recover(ctx, instance, time.Now()); err != nil {
 		return nil, err
 	}
-	webhookPolicy, err := egress.NewPolicy(cfg.Security.Egress.WebhookAllowedOrigins, cfg.Security.Egress.AllowedPrivateCIDRs, cfg.Security.Egress.AllowHTTPForDevelopment, cfg.Security.Egress.AllowAnyOriginForDevelopment)
+	webhookPolicy, err := egress.NewPolicy(cfg.Security.Egress.WebhookAllowedOrigins, cfg.Security.Egress.AllowedPrivateCIDRs, cfg.Security.Egress.AllowHTTPForDevelopment)
 	if err != nil {
 		return nil, err
 	}

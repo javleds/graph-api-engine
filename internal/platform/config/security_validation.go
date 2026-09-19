@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+
+	"github.com/javleds/api-engine/internal/platform/egresspattern"
 )
 
 func validateHTTP(http HTTPConfig, security SecurityConfig) error {
@@ -43,11 +45,11 @@ func validateSecurity(security SecurityConfig) error {
 	if security.AuthenticationEnabled && security.PrincipalsFile == "" {
 		return fmt.Errorf("principals file is required")
 	}
-	if security.Egress.AllowAnyOriginForDevelopment && !security.Egress.AllowHTTPForDevelopment {
-		return fmt.Errorf("allowAnyOriginForDevelopment requires allowHTTPForDevelopment")
+	if security.Playground.Username == "" || security.Playground.Password == "" {
+		return fmt.Errorf("playground username and password are required")
 	}
 	for _, origins := range [][]string{security.Egress.UpstreamAllowedOrigins, security.Egress.WebhookAllowedOrigins} {
-		if len(origins) == 0 && !security.Egress.AllowAnyOriginForDevelopment {
+		if len(origins) == 0 {
 			return fmt.Errorf("explicit upstream and webhook origin allowlists are required")
 		}
 		if err := validateOrigins(origins, security.Egress.AllowHTTPForDevelopment); err != nil {
@@ -62,20 +64,8 @@ func validateSecurity(security SecurityConfig) error {
 	return nil
 }
 func validateOrigins(origins []string, allowHTTP bool) error {
-	seen := map[string]bool{}
-	for _, raw := range origins {
-		if err := validatePublicURL(raw, allowHTTP); err != nil {
-			return fmt.Errorf("invalid origin allowlist")
-		}
-		parsed, _ := url.Parse(raw)
-		if parsed.Path != "" && parsed.Path != "/" {
-			return fmt.Errorf("allowlist entries must be origins without paths")
-		}
-		canonical := strings.ToLower(parsed.Scheme + "://" + parsed.Host)
-		if seen[canonical] {
-			return fmt.Errorf("duplicate allowed origin")
-		}
-		seen[canonical] = true
+	if _, err := egresspattern.ParseAll(origins, allowHTTP); err != nil {
+		return fmt.Errorf("invalid origin allowlist")
 	}
 	return nil
 }

@@ -27,6 +27,9 @@ func Default() Config {
 	return result
 }
 func Load(path string) (*Config, error) {
+	if err := loadDotEnv(".env"); err != nil {
+		return nil, err
+	}
 	if path == "" {
 		path = os.Getenv("ENGINE_CONFIG")
 	}

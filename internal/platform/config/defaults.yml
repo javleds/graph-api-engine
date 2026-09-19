@@ -98,12 +98,14 @@ security:
   encryption:
     activeKeyId: ""
     keyFiles: {}
+  playground:
+    username: ""
+    password: ""
   egress:
     upstreamAllowedOrigins: []
     webhookAllowedOrigins: []
     allowedPrivateCIDRs: []
     allowHTTPForDevelopment: false
-    allowAnyOriginForDevelopment: false
 maintenance:
   interval: "60s"
   batchSize: 200

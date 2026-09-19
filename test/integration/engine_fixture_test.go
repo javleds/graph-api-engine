@@ -33,6 +33,8 @@ func fixtureConfig(t *testing.T, upstream, webhook string) *config.Config {
 	directory := t.TempDir()
 	cfg := config.Default()
 	cfg.HTTP.PublicBaseURL = "http://engine.example.test"
+	cfg.Security.Playground.Username = "test"
+	cfg.Security.Playground.Password = "test-password"
 	cfg.Security.Egress.AllowHTTPForDevelopment = true
 	cfg.Security.Egress.UpstreamAllowedOrigins = []string{upstream}
 	cfg.Security.Egress.WebhookAllowedOrigins = []string{webhook}

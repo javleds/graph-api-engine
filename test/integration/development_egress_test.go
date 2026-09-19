@@ -20,7 +20,8 @@ func TestDevelopmentAllowsUnlistedProviderAndWebhook(t *testing.T) {
 	receiver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { deliveries.Add(1); w.WriteHeader(204) }))
 	defer receiver.Close()
 	cfg := fixtureConfig(t, "https://listed.example", "https://listed-webhook.example")
-	cfg.Security.Egress.AllowAnyOriginForDevelopment = true
+	cfg.Security.Egress.UpstreamAllowedOrigins = []string{"*"}
+	cfg.Security.Egress.WebhookAllowedOrigins = []string{"*"}
 	f := openFixture(t, cfg)
 	body := definitionBody(upstream.URL, map[string]any{"url": receiver.URL})
 	if status, data := f.request(t, "POST", "/playground/api/validate", "", "", body); status != 200 {
