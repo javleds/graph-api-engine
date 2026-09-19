@@ -38,6 +38,8 @@ HTTPS es obligatorio salvo desarrollo explícito. Para pruebas locales, habilita
 
 ## Uso HTTP
 
+Consulta la [guía para construir el JSON](docs/api-request-guide.md), el [schema aceptado](api_request_schema.json) y el [ejemplo completo de varias ramas](contracts/examples/commerce_graph.json).
+
 Enviar `POST /v1/executions` con bearer del engine, `Content-Type: application/json` y una definición como la de `contracts/examples/pokemon_full.json`. La respuesta `202` entrega el UUID y los links de seguimiento y resultado.
 
 `Idempotency-Key` permite recuperar la misma ejecución con el mismo contenido normalizado; contenido diferente produce `409`. Las keys duran mientras se conserve la metadata. Después de su expiración, reutilizar una key puede crear otra ejecución.

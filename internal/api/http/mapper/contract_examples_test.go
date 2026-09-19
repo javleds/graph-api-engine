@@ -11,7 +11,7 @@ import (
 )
 
 func TestNormativeInputExamplesCompile(t *testing.T) {
-	for _, name := range []string{"pokemon_full.json", "input_02.json"} {
+	for _, name := range []string{"pokemon_full.json", "input_02.json", "commerce_graph.json"} {
 		data, err := os.ReadFile("../../../../contracts/examples/" + name)
 		if err != nil {
 			t.Fatal(err)

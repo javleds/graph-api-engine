@@ -55,12 +55,14 @@ func TestSchemaContract(t *testing.T) {
 	}
 }
 func TestEmbeddedSchemaEqualsSource(t *testing.T) {
-	source, err := os.ReadFile("../../../../contracts/create_execution_v1.schema.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(source, inputSchema) {
-		t.Fatal("embedded schema differs from source contract")
+	for _, path := range []string{"../../../../contracts/create_execution_v1.schema.json", "../../../../api_request_schema.json"} {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(source, inputSchema) {
+			t.Fatalf("%s differs from embedded runtime schema", path)
+		}
 	}
 }
 func FuzzDecodeJSON(f *testing.F) {

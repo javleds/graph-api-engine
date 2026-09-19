@@ -1,0 +1,139 @@
+{
+  "definition": {
+    "version": 1,
+    "api": {
+      "baseUrl": "https://example.com/api/v1",
+      "auth": {
+        "type": "bearer",
+        "token": "replace-with-provider-token"
+      },
+      "headers": {
+        "Accept": "application/json"
+      },
+      "limits": {
+        "requests": 100,
+        "per": "1m",
+        "concurrency": 4
+      },
+      "cache": {
+        "ttl": "5m"
+      }
+    },
+    "calls": [
+      {
+        "name": "companies",
+        "type": "collection",
+        "select": "data.items",
+        "request": {
+          "method": "GET",
+          "path": "/companies",
+          "query": {
+            "perPage": 50,
+            "active": true
+          }
+        },
+        "pagination": {
+          "page": "page",
+          "pageSize": "perPage",
+          "start": 1,
+          "pages": "all"
+        },
+        "children": [
+          {
+            "name": "profile",
+            "type": "single",
+            "select": "data",
+            "request": {
+              "method": "GET",
+              "path": "/companies/{parent.id}/profile"
+            },
+            "cache": false
+          },
+          {
+            "name": "users",
+            "type": "collection",
+            "select": "data.items",
+            "request": {
+              "method": "GET",
+              "path": "/companies/{parent.id}/users",
+              "query": {
+                "perPage": 25
+              }
+            },
+            "pagination": {
+              "page": "page",
+              "pageSize": "perPage",
+              "pages": 3
+            },
+            "limits": {
+              "requests": 30,
+              "per": "1m",
+              "concurrency": 2
+            },
+            "children": [
+              {
+                "name": "orders",
+                "type": "collection",
+                "select": "data.items",
+                "request": {
+                  "method": "GET",
+                  "path": "/companies/{companies.id}/users/{parent.id}/orders",
+                  "query": {
+                    "perPage": 20,
+                    "region": "{companies.region}"
+                  }
+                },
+                "pagination": {
+                  "page": "page",
+                  "pageSize": "perPage"
+                },
+                "children": [
+                  {
+                    "name": "productIds",
+                    "type": "collection",
+                    "request": {
+                      "method": "GET",
+                      "path": "/orders/{parent.id}/product-ids"
+                    },
+                    "children": [
+                      {
+                        "name": "details",
+                        "type": "single",
+                        "select": "data",
+                        "request": {
+                          "method": "GET",
+                          "path": "/products/{parent.value}"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "catalog",
+        "type": "collection",
+        "select": "data.items",
+        "request": {
+          "method": "GET",
+          "path": "/catalog"
+        },
+        "cache": {
+          "ttl": "1h"
+        }
+      }
+    ]
+  },
+  "webhook": {
+    "url": "https://consumer.example.com/hooks/executions",
+    "method": "POST",
+    "auth": {
+      "type": "hmac",
+      "secret": "replace-with-webhook-secret"
+    },
+    "payload": "result"
+  }
+}
