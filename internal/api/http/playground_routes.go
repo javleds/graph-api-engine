@@ -8,6 +8,7 @@ import (
 func (s *Server) registerPlayground(mux *http.ServeMux) {
 	playground.Register(mux, s.authorizeWebPage)
 	s.registerPlaygroundSession(mux)
+	s.registerPlaygroundConfiguration(mux)
 	if s.PlaygroundAuth == nil {
 		return
 	}

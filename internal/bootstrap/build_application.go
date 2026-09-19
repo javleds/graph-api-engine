@@ -188,6 +188,7 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 	}
 	publicURL, _ := url.Parse(cfg.HTTP.PublicBaseURL)
 	server := &api.Server{
+		Configuration:          cfg,
 		Cancel:                 canceller,
 		PlaygroundAuth:         playgroundSession,
 		PlaygroundSession:      playgroundSession,

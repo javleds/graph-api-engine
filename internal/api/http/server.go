@@ -8,11 +8,13 @@ import (
 	"github.com/javleds/api-engine/internal/execution/application/ports"
 	notificationports "github.com/javleds/api-engine/internal/notification/application/ports"
 	"github.com/javleds/api-engine/internal/platform/clock"
+	platformconfig "github.com/javleds/api-engine/internal/platform/config"
 	securityports "github.com/javleds/api-engine/internal/security/application/ports"
 	"net/http"
 )
 
 type Server struct {
+	Configuration          *platformconfig.Config
 	Cancel                 *application.CancelExecution
 	APIVersion             int
 	V2Store                ports.V2Store
