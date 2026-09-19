@@ -88,7 +88,7 @@ const example = {
   },
 };
 const pokemonExample = {
-  definition: { version: 1, api: { baseUrl: "https://pokeapi.co/api/v2", limits: { requests: 5, per: "1s", concurrency: 2 } }, calls: { name: "pokemon", type: "single", request: { method: "GET", path: "/pokemon/ditto" } } },
+  definition: { version: 1, api: { baseUrl: "https://pokeapi.co/api/v2", limits: { requests: 5, per: "1s", concurrency: 2 }, cache: { ttl: "1d" } }, calls: [{ name: "idioma", type: "single", request: { method: "GET", path: "/language/es/" } }, { name: "pokemon", type: "collection", select: "pokemon_entries", request: { method: "GET", path: "/pokedex/paldea/" }, children: [{ name: "especie", type: "single", request: { method: "GET", path: "/pokemon-species/{parent.pokemon_species.name}/" } }] }] },
 };
 if (new URLSearchParams(location.search).get("example") === "pokemon") {
   $("request").value = JSON.stringify(pokemonExample, null, 2);

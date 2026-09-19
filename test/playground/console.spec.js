@@ -26,8 +26,14 @@ test('documentation and Pokémon example are available after login', async ({ pa
 	await login(page);
   await page.goto('/docs');
   await expect(page.getByRole('heading', { name: 'Opera y consume API Engine.' })).toBeVisible();
+  await page.getByLabel('Buscar propiedad de configuración').fill('PLAYGROUND_PASSWORD');
+  await expect(page.locator('.doc-layout aside')).toContainText('PLAYGROUND_PASSWORD');
+  await page.getByRole('button', { name: 'Consumo de grafos' }).click();
+  await page.getByLabel('Buscar parámetro de request').fill('children');
+  await expect(page.locator('.doc-layout aside')).toContainText('calls[].children');
   await page.goto('/examples');
   await page.getByRole('button', { name: /Inténtalo en playground/ }).click();
   await expect(page).toHaveURL(/\/playground\?example=pokemon$/);
   await expect(page.locator('#request')).toHaveValue(/pokeapi\.co/);
+  await expect(page.locator('#request')).toHaveValue(/pokemon_entries/);
 });

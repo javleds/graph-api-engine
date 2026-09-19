@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@primeuix/themes": "^3.0.1",
+    "@types/markdown-it": "^14.2.0",
+    "markdown-it": "^14.3.2",
     "primevue": "^5.0.1",
     "vue": "^3.5.43"
   }
