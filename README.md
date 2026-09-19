@@ -65,15 +65,17 @@ Las cuotas se comparten por proveedor/credencial y endpoint. Un arranque frío e
 
 Para resultados progresivos usar `/v2/executions`: [guía y protocolo](docs/api-v2-guide.md), [schema v2](contracts/create_execution_v2.schema.json) y [operación, recursos y recuperación](docs/v2-operations.md). El lenguaje `definition.version` continúa en 1. V2 permite leer fragmentos mientras corre, explorar ramas y exportar NDJSON; el webhook notifica el cierre con links.
 
-## Playground local
+## Consola web
 
-Abrir `/playground` en el mismo servicio (por ejemplo, `http://127.0.0.1:8080/playground`). Pegar el request completo, incluidas las credenciales del proveedor si se requieren, y pulsar **Ejecutar request**. Elegir v1 para resultado final o v2 para fragmentos progresivos. V2 ofrece árbol por ramas, ventana de chunks, raw readonly y descarga NDJSON. En v1, la página sigue el estado y muestra el resultado al terminar; el modo árbol permite expandir objetos/arrays y el modo raw conserva el texto recibido, de solo lectura y copiable.
+Copiar `.env.example` a `.env`, definir las credenciales del playground y arrancar con `docker compose up -d --build`. Abrir `/login`; la sesión firmada dura ocho horas y da acceso a `/playground`, `/docs` y `/examples`. La guía de operación está en [docs/service-configuration.md](docs/service-configuration.md).
+
+En `/playground`, pegar el request completo, incluidas las credenciales del proveedor si se requieren, y pulsar **Ejecutar request**. Elegir v1 para resultado final o v2 para fragmentos progresivos. V2 ofrece árbol por ramas, ventana de chunks, raw readonly y descarga NDJSON. En v1, la página sigue el estado y muestra el resultado al terminar; el modo árbol permite expandir objetos/arrays y el modo raw conserva el texto recibido, de solo lectura y copiable.
 
 El botón **Validar JSON** comprueba sintaxis, schema y referencias sin crear un job ni consultar al proveedor. Indica si el input cumple el contrato y muestra el campo o la ubicación del error cuando están disponibles. Los números de línea del editor no son seleccionables; al editar se descarta el diagnóstico anterior.
 
 La depuración muestra el request enviado y las respuestas HTTP de creación, estado y resultado. **Detener seguimiento** sólo desconecta el navegador; se puede retomar mediante el ID. **Abortar ejecución** solicita a Go el cierre durable del árbol y cancela las llamadas activas del job, tanto en v1 como en v2. La UI muestra **Cancelada**; la API conserva `status: failed` con `error.code: EXECUTION_CANCELLED`. En v2 se conservan los fragmentos ya confirmados. No hay historial ni credenciales guardadas en el navegador. El ejemplo de la página usa un proveedor ilustrativo: adaptar URL, selector y credenciales a un destino permitido por la configuración.
 
-El playground está **abierto para uso local** y sus endpoints `/playground/api/executions` usan el owner reservado `system:playground`, compartido entre visitantes. Quien pueda acceder puede crear jobs y consultar los jobs de esa identidad si conoce su ID. Mantener el servicio en la red local prevista. `/v1/executions` sigue autenticado y no permite leer estos jobs con otro owner. Las cuotas, límites, validación y egress siguen aplicando. No hay tokens automáticos expuestos ni autenticación configurable por `.env` en esta versión.
+Los endpoints del playground requieren la cookie de sesión emitida por login y usan el owner reservado `system:playground`. `/v1/executions` y `/v2/executions` siguen usando Bearer tokens y no permiten leer estos jobs con otro owner. Las cuotas, límites, validación y egress siguen aplicando; el token de sesión nunca se expone al JavaScript.
 
 En v1 los webhooks mantienen su formato y links `/v1`; estos no dan acceso anónimo al resultado. Para una ejecución del playground, consultar su ID desde la página o `/playground/api/executions/{id}`. Los assets se incluyen en el binario y contenedor, sin CDN ni proceso frontend adicional. Navegadores sin soporte para conservar los literales numéricos usan raw para evitar redondear IDs grandes.
 
