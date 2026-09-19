@@ -45,6 +45,11 @@
             <button id="example" class="subtle">Cargar ejemplo</button>
           </div>
           <div class="panel-body">
+            <label for="execution-version">Versión del motor</label>
+            <select id="execution-version">
+              <option value="1">v1 · Resultado completo</option>
+              <option value="2">v2 · Fragmentos progresivos</option>
+            </select>
             <label for="request">JSON de ejecución</label>
             <p class="hint">
               Se envía el texto original. Configura un destino permitido por el
@@ -94,6 +99,11 @@
             <button id="copy" class="subtle" disabled>Copiar JSON</button>
           </div>
           <div class="panel-body">
+            <section
+              id="v2-output"
+              hidden
+              aria-label="Resultado progresivo"
+            ></section>
             <div
               id="response-modes"
               class="mode-switch"

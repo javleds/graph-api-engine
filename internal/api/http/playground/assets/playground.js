@@ -1,4 +1,5 @@
 import { initializeInputEditor } from "./input-editor.js";
+import { createV2Viewer } from "./v2-viewer.js";
 import { renderJSON } from "./json-viewer.js";
 
 const $ = (id) => document.getElementById(id);
@@ -23,7 +24,17 @@ const elements = Object.fromEntries(
     "debug",
   ].map((id) => [id, $(id)]),
 );
-initializeInputEditor();
+const version = () => $("execution-version").value;
+const apiBase = () =>
+  version() === "2"
+    ? "/playground/api/v2/executions"
+    : "/playground/api/executions";
+initializeInputEditor(() =>
+  version() === "2"
+    ? "/playground/api/v2/validate"
+    : "/playground/api/validate",
+);
+const v2Viewer = createV2Viewer($("v2-output"));
 const labels = {
   pending: "◷ Pendiente",
   running: "◷ En ejecución",
@@ -76,6 +87,7 @@ function message(text = "") {
 }
 function setTracking(active, text) {
   tracking = active;
+  $("execution-version").disabled = active;
   elements.execute.disabled = active;
   elements.clear.disabled = active;
   elements.stop.disabled = !active;
@@ -85,6 +97,7 @@ function setTracking(active, text) {
 function beginSession() {
   generation += 1;
   controller?.abort();
+  v2Viewer.cancel();
   clearTimeout(timer);
   controller = new AbortController();
   return generation;
@@ -94,6 +107,7 @@ function stopTracking() {
   setTracking(false, "Seguimiento detenido; el job continúa en el servidor.");
 }
 function resetResponse() {
+  v2Viewer.reset();
   treeAvailable = false;
   $("response-modes").hidden = true;
   $("response-tree").hidden = true;
@@ -303,12 +317,35 @@ async function poll(session, loadResult = true) {
     const raw = await request(
       "status",
       "Último estado",
-      `/playground/api/executions/${encodeURIComponent(currentID)}`,
+      `${apiBase()}/${encodeURIComponent(currentID)}`,
       {},
       session,
     );
     const status = parsedObject(raw);
     renderStatus(status);
+    if (version() === "2") {
+      elements["response-empty"].hidden = true;
+      elements["response-label"].textContent =
+        "Fragmentos confirmados en disco · el árbol se consulta por ramas.";
+      const more = await v2Viewer.update(
+        `${apiBase()}/${encodeURIComponent(currentID)}`,
+        status,
+        controller.signal,
+      );
+      if (session !== generation) return;
+      const terminal = [
+        "completed",
+        "completed_with_errors",
+        "failed",
+      ].includes(status.status);
+      setTracking(
+        !terminal || more,
+        terminal && !more ? "Ejecución terminada" : "Recibiendo fragmentos…",
+      );
+      if (!terminal || more)
+        timer = setTimeout(() => poll(session), more ? 0 : 1000);
+      return;
+    }
     if (status.status === "failed") {
       displayResponse(raw, "Ejecución fallida · respuesta terminal de estado");
       setTracking(false, "Ejecución terminada");
@@ -320,7 +357,7 @@ async function poll(session, loadResult = true) {
         const result = await request(
           "result",
           "Resultado",
-          `/playground/api/executions/${encodeURIComponent(currentID)}/result`,
+          `${apiBase()}/${encodeURIComponent(currentID)}/result`,
           {},
           session,
         );
@@ -391,7 +428,7 @@ async function execute() {
   exchanges.set("request", {
     title: "Request enviado",
     method: "POST",
-    url: "/playground/api/executions",
+    url: apiBase(),
     headers: Object.entries(headers).map(([key, value]) => `${key}: ${value}`),
     body: raw,
   });
@@ -400,7 +437,7 @@ async function execute() {
     const body = await request(
       "create",
       "Creación",
-      "/playground/api/executions",
+      apiBase(),
       { method: "POST", headers, body: raw },
       session,
     );
@@ -466,5 +503,17 @@ $("mode-tree").addEventListener("click", () => setResponseMode("tree"));
 $("mode-raw").addEventListener("click", () => setResponseMode("raw"));
 window.addEventListener("pagehide", () => {
   controller?.abort();
+  v2Viewer.cancel();
   clearTimeout(timer);
+});
+
+$("execution-version").addEventListener("change", () => {
+  beginSession();
+  currentID = "";
+  clearStatus();
+  resetResponse();
+  exchanges.clear();
+  renderDebug();
+  elements.request.dispatchEvent(new Event("input"));
+  setTracking(false, "Listo para ejecutar");
 });

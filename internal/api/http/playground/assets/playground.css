@@ -630,3 +630,42 @@ footer {
 .actions {
   flex-wrap: wrap;
 }
+
+#execution-version {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  color: inherit;
+}
+.v2-nodes {
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+  max-height: 480px;
+  overflow: auto;
+}
+.v2-nodes li {
+  margin: 8px 0;
+}
+.v2-nodes button {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.v2-chunks {
+  max-height: 480px;
+  overflow: auto;
+}
+.v2-chunks button {
+  display: block;
+  text-align: left;
+  width: 100%;
+}
+#v2-output textarea {
+  width: 100%;
+  min-height: 360px;
+}
+#v2-output .mode-switch {
+  margin-bottom: 12px;
+}

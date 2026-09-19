@@ -1,4 +1,6 @@
-export function initializeInputEditor() {
+export function initializeInputEditor(
+  validationURL = () => "/playground/api/validate",
+) {
   const input = document.getElementById("request");
   const lines = document.getElementById("request-lines");
   const button = document.getElementById("validate-json");
@@ -46,7 +48,7 @@ export function initializeInputEditor() {
     button.disabled = true;
     show("Validando sintaxis, schema y referencias…", "pending");
     try {
-      const response = await fetch("/playground/api/validate", {
+      const response = await fetch(validationURL(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: raw,
