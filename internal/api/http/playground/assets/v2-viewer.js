@@ -141,18 +141,20 @@ export function createV2Viewer(host) {
     const originals = arraySources(text, "nodes");
     for (let index = 0; index < (data.nodes ?? []).length; index++) {
       // Preserve number lexemes in labels, including integers beyond Number.MAX_SAFE_INTEGER.
-      const node = JSON.parse(originals[index], (_key, value, context) =>
-        typeof value === "number" ? (context?.source ?? String(value)) : value,
-      );
+      let numericValue;
+      const node = JSON.parse(originals[index], (key, value, context) => {
+        if (typeof value !== "number") return value;
+        if (key === "value")
+          numericValue = context?.source ?? "número (consultar Raw)";
+        return context?.source ?? String(value);
+      });
       const row = document.createElement("li");
-      const label =
-        node.key ??
-        (node.index != null ? `[${node.index}]` : node.path || "raíz");
+      const label = node.index != null ? `[${node.index}]` : node.key || '""';
       const container = node.kind === "object" || node.kind === "array";
       const value = container
         ? node.kind
-        : node.kind === "number"
-          ? node.value
+        : numericValue !== undefined
+          ? numericValue
           : JSON.stringify(node.value);
       const title = `${label}: ${value ?? "pendiente"} · ${node.status || "pendiente"}`;
       if (container) {

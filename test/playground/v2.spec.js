@@ -51,7 +51,7 @@ test("v2 lazy tree, bounded chunks and exact readonly scalar JSON", async ({
     const chunks = Array.from(
       { length: last - after },
       (_, i) =>
-        `{"sequence":"${after + i + 1}","type":"data","operation":"scalar","value":9007199254740993}`,
+        `{"sequence":"${after + i + 1}","type":"data","operation":"value","value":9007199254740993}`,
     ).join(",");
     return route.fulfill({
       contentType: "application/json",
@@ -69,7 +69,7 @@ test("v2 lazy tree, bounded chunks and exact readonly scalar JSON", async ({
               {
                 nodeId: "child",
                 key: "<img src=x onerror=alert(1)>",
-                kind: "null",
+                kind: "value",
                 value: null,
                 status: "completed",
               },
@@ -108,7 +108,7 @@ test("v2 lazy tree, bounded chunks and exact readonly scalar JSON", async ({
   await expect(
     page.getByLabel("Fragmento JSON original (solo lectura)"),
   ).toHaveValue(
-    '{"sequence":"250","type":"data","operation":"scalar","value":9007199254740993}',
+    '{"sequence":"250","type":"data","operation":"value","value":9007199254740993}',
   );
   await expect(
     page.getByLabel("Fragmento JSON original (solo lectura)"),
@@ -205,4 +205,42 @@ test("v2 stops tracking and resumes from confirmed cursor without another POST",
   );
   expect(posts).toBe(1);
   expect(cursors.at(-1)).toBe("1");
+});
+
+test("v2 tree preserves scalar number types and empty property names", async ({
+  page,
+}) => {
+  await page.route("**/playground/api/v2/executions", (route) =>
+    route.fulfill({ status: 202, json: { id, status: "pending" } }),
+  );
+  await page.route(`**${endpoint}`, (route) =>
+    route.fulfill({
+      json: { id, status: "completed", v2: { lastSequence: "1" } },
+    }),
+  );
+  await page.route(`**${endpoint}/chunks?*`, (route) =>
+    route.fulfill({
+      json: {
+        chunks: [],
+        nextCursor: "1",
+        lastSequence: "1",
+        hasMore: false,
+        terminal: true,
+      },
+    }),
+  );
+  await page.route(`**${endpoint}/tree?*`, (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: '{"nodes":[{"nodeId":"large","key":"id","kind":"value","value":9007199254740993,"status":"completed"},{"nodeId":"empty","path":"/root/","kind":"value","value":false,"status":"completed"}],"nextCursor":"2","hasMore":false,"terminal":true,"lastSequence":"2"}',
+    }),
+  );
+  await prepare(page);
+  await page.locator("#execute").click();
+  await expect(page.locator(".v2-nodes")).toContainText(
+    "id: 9007199254740993 · completed",
+  );
+  await expect(page.locator(".v2-nodes")).toContainText(
+    '"": false · completed',
+  );
 });

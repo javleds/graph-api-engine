@@ -130,6 +130,17 @@ func (r *V2Runner) Run(parent context.Context, id execution.ExecutionID) error {
 				commit.DeleteInputs = append(commit.DeleteInputs, key)
 			}
 		}
+		budgetState, readErr := r.V2Store.ReadV2State(ctx, id)
+		if readErr != nil {
+			if errors.Is(readErr, context.DeadlineExceeded) && parent.Err() == nil {
+				fatal = &execution.ExecutionFailure{Code: "EXECUTION_TIMEOUT", Message: failureMessage("EXECUTION_TIMEOUT")}
+				break
+			}
+			return readErr
+		}
+		checkpoint.Progress.LogicalRequests = uint64(budgetState.LogicalRequests)
+		checkpoint.Progress.HTTPAttempts = uint64(budgetState.HTTPAttempts)
+		checkpoint.Progress.NodeFailures = checkpoint.Report.ErrorSummary.Total
 		commit.Progress = &checkpoint.Progress
 		commit.Task.Payload, err = json.Marshal(checkpoint)
 		if err != nil {

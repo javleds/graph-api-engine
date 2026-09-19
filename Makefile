@@ -29,3 +29,7 @@ fuzz:
 .PHONY: playground-test
 playground-test:
 	npm run test:playground
+
+.PHONY: test-v2-large
+test-v2-large:
+	ENGINE_V2_LARGE=1 go test ./internal/worker -run TestV2Large -count=1 -v -timeout=30m

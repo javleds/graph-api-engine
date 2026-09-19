@@ -66,7 +66,7 @@ func v2Replay(chunks []execution.V2Chunk) map[string]any {
 func TestV2ReplayMatchesV1AcrossNormalizationAndFailures(t *testing.T) {
 	fixture := func(_ context.Context, r fetch.FetchRequest) (fetch.FetchResult, error) {
 		if strings.HasSuffix(r.Request.URL, "/root") {
-			return response(`[{"id":1,"nested":[{"x":2}]},7,null,{"child":"collision"}]`)
+			return response(`[{"id":1,"nested":[{"x":2,"":false,"~/":null}]},7,null,{"child":"collision"}]`)
 		}
 		return response(`{"big":9007199254740993,"ok":true}`)
 	}
@@ -210,5 +210,39 @@ func TestV2IncompatibleCheckpointFailsWithoutHTTP(t *testing.T) {
 	}
 	if store.completion.Error == nil || store.completion.Error.Code != "UNSUPPORTED_CHECKPOINT_VERSION" {
 		t.Fatal(store.completion)
+	}
+}
+
+func TestV2CrashMatrixPreservesExactlyOncePublication(t *testing.T) {
+	fixture := func(_ context.Context, r fetch.FetchRequest) (fetch.FetchResult, error) {
+		if strings.HasSuffix(r.Request.URL, "/root") {
+			return response(`[{"id":1},{"id":2}]`)
+		}
+		return response(`{"value":true}`)
+	}
+	root := call("root", "collection", "/root", call("child", "single", "/{parent.id}"))
+	baseline, _, baseStore := v2TestRunner(&fakeFetcher{handle: fixture}, root)
+	if err := baseline.Run(context.Background(), "id"); err != nil {
+		t.Fatal(err)
+	}
+	expected, _ := json.Marshal(v2Replay(baseStore.chunks))
+	for crash := 1; crash <= baseStore.commits; crash++ {
+		for _, after := range []bool{false, true} {
+			runner, store, durable := v2TestRunner(&fakeFetcher{handle: fixture}, root)
+			durable.crashAt = crash
+			durable.afterCommit = after
+			if err := runner.Run(context.Background(), "id"); err == nil {
+				t.Fatalf("crash %d after %v was not injected", crash, after)
+			}
+			durable.crashAt = 0
+			store.current.Status = execution.Pending
+			if err := runner.Run(context.Background(), "id"); err != nil {
+				t.Fatalf("crash %d after %v resume: %v", crash, after, err)
+			}
+			got, _ := json.Marshal(v2Replay(durable.chunks))
+			if string(got) != string(expected) || len(durable.chunks) != len(baseStore.chunks) {
+				t.Fatalf("crash %d after %v changed result/publications", crash, after)
+			}
+		}
 	}
 }
