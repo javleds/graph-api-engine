@@ -56,6 +56,20 @@ const counterLabels = {
   nodeFailures: "errores de nodos",
   skippedSubtrees: "subárboles omitidos",
 };
+const counterGroups = [
+  {
+    title: "Raíces y subárboles",
+    keys: ["successfulRootCalls", "partialRootCalls", "failedRootCalls", "skippedSubtrees"],
+  },
+  {
+    title: "Tráfico y HTTP",
+    keys: ["logicalRequests", "httpAttempts", "coalescedRequests", "retries"],
+  },
+  {
+    title: "Rendimiento y nodos",
+    keys: ["cacheHits", "completedRootItems", "nodeFailures"],
+  },
+];
 const example = {
   definition: {
     version: 1,
@@ -277,16 +291,31 @@ function renderStatus(status) {
       : "—",
   );
   addMeta("Última actualización", new Date().toLocaleTimeString("es"));
-  elements.progress.replaceChildren();
-  for (const [key, value] of Object.entries(status.progress ?? {})) {
-    const item = document.createElement("span");
-    item.className = "counter";
-    const count = document.createElement("strong");
-    count.textContent = value;
-    item.append(count, counterLabels[key] ?? key);
-    elements.progress.append(item);
-  }
+  renderProgress(status.progress ?? {});
   renderWebhook(status);
+}
+function renderProgress(progress) {
+  elements.progress.replaceChildren();
+  for (const group of counterGroups) {
+    const values = group.keys.filter((key) => key in progress);
+    if (!values.length) continue;
+    const card = document.createElement("section");
+    card.className = "metric-group";
+    const title = document.createElement("h3");
+    title.textContent = group.title;
+    const valuesHost = document.createElement("div");
+    valuesHost.className = "metric-values";
+    for (const key of values) {
+      const item = document.createElement("span");
+      item.className = "counter";
+      const count = document.createElement("strong");
+      count.textContent = progress[key];
+      item.append(count, counterLabels[key] ?? key);
+      valuesHost.append(item);
+    }
+    card.append(title, valuesHost);
+    elements.progress.append(card);
+  }
 }
 function renderWebhook(status) {
   elements.webhook.replaceChildren();

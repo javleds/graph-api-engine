@@ -21,15 +21,16 @@
       </nav>
     </header>
     <main>
-      <div class="intro">
-        <p class="eyebrow">EXECUTION PLAYGROUND</p>
-        <h1>Del request al resultado.</h1>
-        <p>
-          Construye tu grafo, ejecuta sus llamadas y explora la respuesta
-          completa.
-        </p>
-      </div>
-      <section class="status-panel" aria-label="Estado de ejecución">
+      <div class="hero-row">
+        <div class="intro">
+          <p class="eyebrow">EXECUTION PLAYGROUND</p>
+          <h1>Del request al resultado.</h1>
+          <p>
+            Construye tu grafo, ejecuta sus llamadas y explora la respuesta
+            completa.
+          </p>
+        </div>
+        <section class="status-panel" aria-label="Estado de ejecución">
         <div class="status-top">
           <div class="status-summary">
             <span id="status" class="badge" role="status">○ Sin ejecución</span
@@ -44,18 +45,19 @@
             </button>
           </div>
         </div>
-        <div class="execution-overview">
-          <dl id="execution-meta" class="metadata"></dl>
-          <section class="metrics-panel" aria-labelledby="metrics-title">
-            <div class="metrics-heading">
-              <h2 id="metrics-title">Métricas de grafo</h2>
-              <span>Se actualizan durante la ejecución</span>
-            </div>
-            <div id="progress" class="counters"></div>
-          </section>
-        </div>
+        </section>
+      </div>
+      <section class="execution-strip" aria-label="Detalle de ejecución">
+        <dl id="execution-meta" class="metadata"></dl>
         <div id="webhook" class="webhook" hidden></div>
         <div id="message" class="message" role="alert" hidden></div>
+      </section>
+      <section class="metrics-panel" aria-labelledby="metrics-title">
+        <div class="metrics-heading">
+          <h2 id="metrics-title">Métricas de grafo</h2>
+          <span>Se actualizan durante la ejecución</span>
+        </div>
+        <div id="progress" class="counters"></div>
       </section>
       <div class="workspace">
         <section class="panel input-panel" aria-labelledby="request-title">
