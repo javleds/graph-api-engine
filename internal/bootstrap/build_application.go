@@ -87,6 +87,9 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 	if err = recovery.Execute(ctx, ids, time.Now().UTC()); err != nil {
 		return nil, err
 	}
+	if err = a.Store.RecoverV2(ctx); err != nil {
+		return nil, err
+	}
 	outbox := notificationsql.NewSQLiteWebhookOutbox(a.EngineDB, protector)
 	if err = outbox.Recover(ctx, instance, time.Now()); err != nil {
 		return nil, err
@@ -133,13 +136,20 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 		},
 	}
 	runner := &worker.ExecutionRunner{Store: a.Store, Finalizer: finalizer, Engine: engine, InstanceID: instance, ResultRetention: cfg.Storage.ResultRetention.Value()}
-	a.Dispatcher = inprocess.NewLocalExecutionDispatcher(context.WithoutCancel(ctx), measuredRunner{runner: runner, store: a.Store, metrics: a.Metrics}, cfg.Executions.MaxConcurrent, cfg.Executions.Timeout.Value())
+	v2runner := &worker.V2Runner{Store: a.Store, V2Store: a.Store, Finalizer: finalizer, Engine: engine, InstanceID: instance, ResultRetention: cfg.Storage.ResultRetention.Value(), Limits: cfg.Executions.V2.Limits()}
+	versions := versionedRunner{store: a.Store, v1: runner, v2: v2runner}
+	a.Dispatcher = inprocess.NewLocalExecutionDispatcher(context.WithoutCancel(ctx), measuredRunner{runner: versions, store: a.Store, metrics: a.Metrics}, cfg.Executions.MaxConcurrent, 0)
 	a.Dispatcher.OnFailure = func(id domain.ExecutionID, _ error) {
 		a.Logger.Error("execution supervisor observed failure", "execution_id", id)
 		persist, cancel := context.WithTimeout(context.Background(), cfg.Shutdown.PersistenceTimeout.Value())
 		defer cancel()
 		_, current, err := a.Store.Load(persist, id)
 		if err != nil {
+			a.ready.Store(false)
+			return
+		}
+		if current.APIVersion == 2 {
+			// Confirmed checkpoints remain resumable; never convert a storage outage to success.
 			a.ready.Store(false)
 			return
 		}
@@ -167,6 +177,7 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 		Clock:             clock.RealClock{},
 		IdentityKey:       identity,
 		MetadataRetention: cfg.Storage.MetadataRetention.Value(),
+		ExecutionTimeout:  cfg.Executions.Timeout.Value(),
 		CheckCapacity:     a.checkCapacity,
 	}
 	server := &api.Server{
@@ -176,6 +187,7 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 		Create:          creator,
 		Reader:          a.Store,
 		Results:         a.Store,
+		V2Store:         a.Store,
 		Auth:            authenticator,
 		Clock:           clock.RealClock{},
 		Limits:          cfg.DefinitionLimits(),

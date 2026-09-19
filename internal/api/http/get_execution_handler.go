@@ -12,6 +12,9 @@ func (s *Server) executionLinks(id string) dto.ExecutionLinks {
 		prefix = "/v1/executions"
 	}
 	base := prefix + "/" + id
+	if s.apiVersion() == 2 {
+		return dto.ExecutionLinks{Self: base, Chunks: base + "/chunks", Tree: base + "/tree", Export: base + "/export"}
+	}
 	return dto.ExecutionLinks{Self: base, Result: base + "/result"}
 }
 func (s *Server) getExecution(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +26,19 @@ func (s *Server) getExecution(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		presentError(w, err, "")
 		return
+	}
+	if !s.matchesVersion(execution) {
+		writeError(w, 404, "EXECUTION_NOT_FOUND", "")
+		return
+	}
+	var state *domain.V2State
+	if s.apiVersion() == 2 {
+		v, err := s.V2Store.ReadV2State(r.Context(), execution.ID)
+		if err != nil {
+			presentError(w, err, "")
+			return
+		}
+		state = &v
 	}
 	report := execution.Report
 	if report.Errors == nil {
@@ -45,5 +61,5 @@ func (s *Server) getExecution(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	writeJSON(w, 200, dto.ExecutionResponse{ID: execution.ID, Status: execution.Status, CreatedAt: execution.CreatedAt, StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt, Progress: execution.Progress, Webhook: webhook, Error: execution.Error, Errors: report.Errors, ErrorSummary: report.ErrorSummary, Roots: report.Roots, Links: s.executionLinks(string(execution.ID))})
+	writeJSON(w, 200, dto.ExecutionResponse{V2: state, ID: execution.ID, Status: execution.Status, CreatedAt: execution.CreatedAt, StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt, Progress: execution.Progress, Webhook: webhook, Error: execution.Error, Errors: report.Errors, ErrorSummary: report.ErrorSummary, Roots: report.Roots, Links: s.executionLinks(string(execution.ID))})
 }

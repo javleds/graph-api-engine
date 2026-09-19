@@ -33,6 +33,9 @@ func (s *Server) validateRequest(w http.ResponseWriter, r *http.Request) {
 		presentError(w, err, "")
 		return
 	}
+	if !s.validateVersionInput(w, input) {
+		return
+	}
 	if _, err := mapper.Compile(input, s.Limits); err != nil {
 		presentError(w, err, "")
 		return

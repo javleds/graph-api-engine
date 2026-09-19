@@ -21,4 +21,9 @@ func (s *Server) registerPlayground(mux *http.ServeMux) {
 	mux.Handle("POST /playground/api/executions", protection.Handler(http.HandlerFunc(local.createExecution)))
 	mux.HandleFunc("GET /playground/api/executions/{id}", local.getExecution)
 	mux.HandleFunc("GET /playground/api/executions/{id}/result", local.getResult)
+	v2 := local
+	v2.APIVersion = 2
+	v2.ExecutionBasePath = "/playground/api/v2/executions"
+	v2.registerV2(mux, protection)
+	mux.Handle("POST /playground/api/v2/validate", protection.Handler(http.HandlerFunc(v2.validateRequest)))
 }

@@ -13,6 +13,8 @@ import (
 )
 
 type Server struct {
+	APIVersion           int
+	V2Store              ports.V2Store
 	PlaygroundAuth       securityports.PrincipalAuthenticator
 	ExecutionBasePath    string
 	ValidateQuotas       func(context.Context, definitiondomain.CompiledDefinition) error
@@ -34,6 +36,10 @@ type Server struct {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	s.registerPlayground(mux)
+	v2 := *s
+	v2.APIVersion = 2
+	v2.ExecutionBasePath = "/v2/executions"
+	v2.registerV2(mux, nil)
 	mux.HandleFunc("POST /v1/executions", s.createExecution)
 	mux.HandleFunc("GET /v1/executions/{id}", s.getExecution)
 	mux.HandleFunc("GET /v1/executions/{id}/result", s.getResult)

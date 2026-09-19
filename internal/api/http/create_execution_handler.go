@@ -43,6 +43,9 @@ func (s *Server) createExecution(w http.ResponseWriter, r *http.Request) {
 		presentError(w, err, "")
 		return
 	}
+	if !s.validateVersionInput(w, input) {
+		return
+	}
 	compiled, err := mapper.Compile(input, s.Limits)
 	if err != nil {
 		presentError(w, err, "")
@@ -65,7 +68,7 @@ func (s *Server) createExecution(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "INTERNAL_ERROR", "")
 		return
 	}
-	result, err := s.Create.Execute(r.Context(), application.CreateExecutionCommand{OwnerID: principal.OwnerID, IdempotencyKey: key, Definition: snapshot, WebhookEnabled: compiled.Webhook != nil})
+	result, err := s.Create.Execute(r.Context(), application.CreateExecutionCommand{APIVersion: s.apiVersion(), OwnerID: principal.OwnerID, IdempotencyKey: key, Definition: snapshot, WebhookEnabled: compiled.Webhook != nil})
 	if err != nil {
 		presentError(w, err, string(result.Execution.ID))
 		return

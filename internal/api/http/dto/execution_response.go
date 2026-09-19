@@ -6,6 +6,7 @@ import (
 )
 
 type ExecutionResponse struct {
+	V2           *domain.V2State          `json:"v2,omitempty"`
 	ID           domain.ExecutionID       `json:"id"`
 	Status       domain.ExecutionStatus   `json:"status"`
 	CreatedAt    time.Time                `json:"createdAt"`

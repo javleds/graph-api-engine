@@ -41,6 +41,10 @@ func presentError(w http.ResponseWriter, err error, id string) {
 		writeJSON(w, status, dto.ErrorResponse{Error: dto.PublicError{Code: validation.Code, Message: "The definition is invalid.", Details: []dto.ErrorDetail{{Path: validation.Path, Code: validation.Code, Message: validation.Message}}}, RequestID: requestID, ID: id})
 		return
 	}
+	if errors.Is(err, executiondomain.ErrV2Cursor) {
+		writeError(w, 422, "INVALID_CURSOR", id)
+		return
+	}
 	var storage executiondomain.StorageError
 	if errors.As(err, &storage) {
 		status := 503

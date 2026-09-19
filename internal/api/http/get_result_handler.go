@@ -11,6 +11,15 @@ func (s *Server) getResult(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	metadata, err := s.Reader.Read(r.Context(), principal.OwnerID, domain.ExecutionID(r.PathValue("id")))
+	if err != nil {
+		presentError(w, err, "")
+		return
+	}
+	if !s.matchesVersion(metadata) {
+		writeError(w, 404, "EXECUTION_NOT_FOUND", "")
+		return
+	}
 	execution, data, err := s.Results.ReadResult(r.Context(), principal.OwnerID, domain.ExecutionID(r.PathValue("id")), s.Clock.Now())
 	if err != nil {
 		presentError(w, err, "")
