@@ -110,3 +110,13 @@ Ninguna decisión de producto pendiente. Los detalles de tipos y nombres de tabl
 8. UI incremental reutilizando componentes visuales; pruebas desktop/mobile.
 9. Fallos controlados, regresiones y fixture grande medido; ejecutar checks completos.
 10. Documentar operación, contratos, recursos medidos y despliegue con respaldo.
+
+## Concreción de implementación y validación
+
+Las operaciones wire son `object`, `array`, `value`, `close`; el detalle público está en [la guía v2](../api-v2-guide.md). El runner inicial usa una sola continuación coordinadora por job con pila DFS, referencias a inputs y cursor, en lugar de materializar una tarea por cada nodo. Usa un slot activo por ejecución (dentro del máximo previsto), con concurrencia entre jobs; esta elección reduce memoria y transacciones de cola. Los inputs sin referencias se eliminan atómicamente al avanzar.
+
+Se reserva 256 KiB y un fragmento para terminal; su valor lleva resumen/raíces/error global, sin repetir todo el reporte de errores. El timeout del dispatcher se delega al runner para conservar el deadline v2 persistido; v1 sigue aplicando su timeout de Engine.
+
+Aceptación ejecutada: ~1 GiB publicado en SQLite cifrado, reapertura y recuperación intermedia sin refetch de páginas confirmadas, ~20.2 MiB de heap observado y ~2.69 GiB de disco. Metodología y límites de esta medición en [operación v2](../v2-operations.md). Pruebas de API y servicio real verifican recuperación, aislamiento, webhook terminal y snapshot NDJSON.
+
+Validación final: `make check` (arquitectura, formato, vet, tests y race), `make coverage fuzz build`, `make vuln`, suite original de 38 pruebas browser y 10 pruebas v2 tras añadir casos de literales numéricos y claves vacías (40 casos distintos en total), prueba de aproximadamente 1 GiB y build/arranque Docker. El contenedor informa versión 2.0.0; readiness y playground responden 200. Govulncheck no encontró vulnerabilidades alcanzables por el código.

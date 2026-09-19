@@ -316,3 +316,7 @@ Una colección vacía válida es éxito. Una colección fallida se representa co
 | `PAGINATION_SIZE_INCONSISTENT` | Tamaño pedido y cantidad realmente devuelta por el proveedor. |
 
 Para contratos adicionales, consultar el [schema de resultados](../contracts/execution_result_v1.schema.json), la [matriz de pruebas](testing.md) y el [README operativo](../README.md).
+
+## Ejecuciones v2
+
+El mismo grafo se puede enviar a `/v2/executions`, manteniendo `definition.version: 1`. Cambia la entrega: fragmentos progresivos, árbol bajo demanda y exportación NDJSON. El webhook v2 admite sólo payload `status`. Ver [guía v2](api-v2-guide.md) y [schema específico](../contracts/create_execution_v2.schema.json).

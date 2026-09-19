@@ -3,7 +3,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-ARG VERSION=1.1.0
+ARG VERSION=2.0.0
 ARG COMMIT=unknown
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/api-engine ./cmd/api-engine \
     && mkdir -p /out/data /out/tmp \

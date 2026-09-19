@@ -2,7 +2,7 @@
 
 Servicio Go asíncrono para obtener y enriquecer árboles de datos HTTP. Una instancia combina API, worker, caché SQLite, cuotas compartidas y webhooks durables.
 
-El contrato normativo está en [el spec v1.1](docs/specs/spec-api-execution-engine-go-v1.1.md). El [plan incremental](docs/specs/001-plan-api-execution-engine-go-v1.1.md) describe los commits; las capacidades futuras de Redis, reanudación de nodos y múltiples réplicas quedan fuera del MVP.
+El contrato normativo está en [el spec v1.1](docs/specs/spec-api-execution-engine-go-v1.1.md). El [plan incremental](docs/specs/001-plan-api-execution-engine-go-v1.1.md) describe los commits; Redis y múltiples réplicas siguen fuera de alcance. La [v2](docs/specs/005-api-execution-engine-v2.md) añade resultados por fragmentos y recuperación durable del árbol.
 
 ## Desarrollo
 
@@ -61,9 +61,11 @@ Consultar `GET /v1/executions/{id}` y `GET /v1/executions/{id}/result` con el mi
 
 Las cuotas se comparten por proveedor/credencial y endpoint. Un arranque frío espera la ventana conservadora definida en §14 antes de enviar. Configurar grupos administrados cuando varios tokens u origins compartan una cuota real. Caché y flights evitan intentos físicos sin eliminar relaciones de salida.
 
+Para resultados progresivos usar `/v2/executions`: [guía y protocolo](docs/api-v2-guide.md), [schema v2](contracts/create_execution_v2.schema.json) y [operación, recursos y recuperación](docs/v2-operations.md). El lenguaje `definition.version` continúa en 1. V2 permite leer fragmentos mientras corre, explorar ramas y exportar NDJSON; el webhook notifica el cierre con links.
+
 ## Playground local
 
-Abrir `/playground` en el mismo servicio (por ejemplo, `http://127.0.0.1:8080/playground`). Pegar el request completo, incluidas las credenciales del proveedor si se requieren, y pulsar **Ejecutar request**. La página sigue el estado y muestra el resultado al terminar; el modo árbol permite expandir objetos/arrays y el modo raw conserva el texto recibido, de solo lectura y copiable.
+Abrir `/playground` en el mismo servicio (por ejemplo, `http://127.0.0.1:8080/playground`). Pegar el request completo, incluidas las credenciales del proveedor si se requieren, y pulsar **Ejecutar request**. Elegir v1 para resultado final o v2 para fragmentos progresivos. V2 ofrece árbol por ramas, ventana de chunks, raw readonly y descarga NDJSON. En v1, la página sigue el estado y muestra el resultado al terminar; el modo árbol permite expandir objetos/arrays y el modo raw conserva el texto recibido, de solo lectura y copiable.
 
 El botón **Validar JSON** comprueba sintaxis, schema y referencias sin crear un job ni consultar al proveedor. Indica si el input cumple el contrato y muestra el campo o la ubicación del error cuando están disponibles. Los números de línea del editor no son seleccionables; al editar se descarta el diagnóstico anterior.
 
@@ -71,7 +73,7 @@ La depuración muestra el request enviado y las respuestas HTTP de creación, es
 
 El playground está **abierto para uso local** y sus endpoints `/playground/api/executions` usan el owner reservado `system:playground`, compartido entre visitantes. Quien pueda acceder puede crear jobs y consultar los jobs de esa identidad si conoce su ID. Mantener el servicio en la red local prevista. `/v1/executions` sigue autenticado y no permite leer estos jobs con otro owner. Las cuotas, límites, validación y egress siguen aplicando. No hay tokens automáticos expuestos ni autenticación configurable por `.env` en esta versión.
 
-Los webhooks mantienen su formato y links `/v1`; estos no dan acceso anónimo al resultado. Para una ejecución del playground, consultar su ID desde la página o `/playground/api/executions/{id}`. Los assets se incluyen en el binario y contenedor, sin CDN ni proceso frontend adicional. Navegadores sin soporte para conservar los literales numéricos usan raw para evitar redondear IDs grandes.
+En v1 los webhooks mantienen su formato y links `/v1`; estos no dan acceso anónimo al resultado. Para una ejecución del playground, consultar su ID desde la página o `/playground/api/executions/{id}`. Los assets se incluyen en el binario y contenedor, sin CDN ni proceso frontend adicional. Navegadores sin soporte para conservar los literales numéricos usan raw para evitar redondear IDs grandes.
 
 Pruebas de navegador (Node.js 22 o posterior, solo desarrollo):
 
@@ -87,7 +89,7 @@ La suite inicia el servicio y un proveedor controlado en loopback con SQLite y c
 
 `/health/live` indica vida del proceso y `/health/ready` verifica almacenamiento crítico y readiness. Las métricas requieren `metrics:read`; los logs JSON no incluyen bodies ni credenciales.
 
-SIGTERM/SIGINT cierra admisión, detiene reclamación de webhooks, espera la gracia y cancela trabajo restante con una ventana independiente de persistencia. Tras una caída abrupta, los jobs pendientes/activos se marcan `PROCESS_INTERRUPTED`; no se reanuda el árbol. El consumidor decide si crea una nueva ejecución.
+SIGTERM/SIGINT cierra admisión, detiene reclamación de webhooks, espera la gracia y cancela trabajo restante con una ventana independiente de persistencia. Tras una caída abrupta, los jobs v1 pendientes/activos se marcan `PROCESS_INTERRUPTED`. Los jobs v2 reanudan el último checkpoint confirmado con el mismo ID y deadline, sin volver a consultar páginas confirmadas. Una petición en vuelo puede repetirse. Consultar [operación v2](docs/v2-operations.md) antes de migrar un volumen existente.
 
 Los webhooks pueden duplicarse: deduplicar persistentemente por `eventId`. Para HMAC, verificar `eventId.timestamp.rawBody` con SHA-256, comparación constante y una tolerancia de tiempo. Cada intento conserva evento/payload y renueva timestamp/firma. El fallo de entrega no cambia el estado terminal del job.
 
