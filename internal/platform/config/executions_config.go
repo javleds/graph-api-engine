@@ -1,6 +1,7 @@
 package config
 
 type ExecutionsConfig struct {
+	V2                    V2Config     `json:"v2"`
 	MaxConcurrent         int          `json:"maxConcurrent"`
 	Timeout               Duration     `json:"timeout"`
 	MaxDefinitionDepth    int          `json:"maxDefinitionDepth"`

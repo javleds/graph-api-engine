@@ -46,6 +46,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	e := c.Executions
+	if e.V2.MaxPublishedBytes < 262144 || e.V2.MaxStoredBytes < e.V2.MaxPublishedBytes {
+		return fmt.Errorf("invalid v2 storage budgets")
+	}
 	if e.MaxRootCalls > 128 || e.Errors.MaxDetails < 1 || e.Errors.MaxReportBytes < 32768 || e.Errors.MaxMessageBytes < 64 || e.Errors.MaxMessageBytes > 2048 || e.MaxResultBytes <= e.Errors.MaxReportBytes || e.MaxResultBytes-e.Errors.MaxReportBytes <= 65536 {
 		return fmt.Errorf("invalid execution or error report budgets")
 	}

@@ -24,14 +24,26 @@ type CreateExecution struct {
 	Clock             clock.Clock
 	IdentityKey       []byte
 	MetadataRetention time.Duration
+	ExecutionTimeout  time.Duration
 	CheckCapacity     func(context.Context) error
 }
 
 func (c *CreateExecution) Execute(ctx context.Context, command CreateExecutionCommand) (CreationResult, error) {
-	fingerprint := c.identity("request", string(command.Definition))
+	version := command.APIVersion
+	if version == 0 {
+		version = 1
+	}
+	if version != 1 && version != 2 {
+		return CreationResult{}, errors.New("unsupported execution protocol")
+	}
+	purpose := ""
+	if version == 2 {
+		purpose = ":v2"
+	}
+	fingerprint := c.identity("request"+purpose, string(command.Definition))
 	key := ""
 	if command.IdempotencyKey != "" {
-		key = c.identity("idempotency", command.OwnerID+"\x00"+command.IdempotencyKey)
+		key = c.identity("idempotency"+purpose, command.OwnerID+"\x00"+command.IdempotencyKey)
 		existing, err := c.Store.FindReplay(ctx, command.OwnerID, key)
 		if err == nil {
 			if existing.Fingerprint != fingerprint {
@@ -58,7 +70,12 @@ func (c *CreateExecution) Execute(ctx context.Context, command CreateExecutionCo
 		return CreationResult{}, fmt.Errorf("generate execution identity: %w", err)
 	}
 	now := c.Clock.Now()
+	timeout := c.ExecutionTimeout
+	if timeout <= 0 {
+		timeout = 6 * time.Hour
+	}
 	execution, replay, err := c.Store.Create(ctx, domain.ExecutionSnapshot{
+		APIVersion: version, DeadlineAt: now.Add(timeout),
 		ID: domain.ExecutionID(id), OwnerID: command.OwnerID, Fingerprint: fingerprint, IdempotencyKeyHash: key,
 		Definition: command.Definition, WebhookEnabled: command.WebhookEnabled, CreatedAt: now, MetadataExpiresAt: now.Add(c.MetadataRetention),
 	})

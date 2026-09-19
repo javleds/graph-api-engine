@@ -29,6 +29,13 @@
       "maxDetails": 1000,
       "maxReportBytes": 1048576,
       "maxMessageBytes": 512
+    },
+    "v2": {
+      "maxPublishedBytes": 1073741824,
+      "maxStoredBytes": 8589934592,
+      "maxChunks": 1000000,
+      "maxNodes": 1000000,
+      "maxPendingTasks": 100000
     }
   },
   "fetch": {
@@ -107,8 +114,12 @@
       }
     },
     "egress": {
-      "upstreamAllowedOrigins": ["https://example.com"],
-      "webhookAllowedOrigins": ["https://consumer.example.com"],
+      "upstreamAllowedOrigins": [
+        "https://example.com"
+      ],
+      "webhookAllowedOrigins": [
+        "https://consumer.example.com"
+      ],
       "allowedPrivateCIDRs": [],
       "allowHTTPForDevelopment": false,
       "allowAnyOriginForDevelopment": false
