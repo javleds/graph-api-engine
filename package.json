@@ -3,9 +3,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:playground": "playwright test"
+    "test:playground": "playwright test",
+    "build:web": "vite build --config web/vite.config.ts",
+    "typecheck:web": "vue-tsc --noEmit -p web/tsconfig.json"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.63.0",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6",
+    "vue-tsc": "^3.3.11"
+  },
+  "dependencies": {
+    "@primeuix/themes": "^3.0.1",
+    "primevue": "^5.0.1",
+    "vue": "^3.5.43"
   }
 }

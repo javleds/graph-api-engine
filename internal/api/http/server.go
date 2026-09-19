@@ -40,6 +40,13 @@ type Server struct {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	s.registerPlayground(mux)
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "/playground", http.StatusSeeOther)
+	})
 	v2 := *s
 	v2.APIVersion = 2
 	v2.ExecutionBasePath = "/v2/executions"

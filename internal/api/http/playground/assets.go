@@ -2,13 +2,16 @@ package playground
 
 import (
 	"embed"
+	"io/fs"
+	"mime"
 	"net/http"
+	"path"
 )
 
 //go:embed assets/*
 var assets embed.FS
 
-func Register(mux *http.ServeMux) {
+func Register(mux *http.ServeMux, guard func(http.ResponseWriter, *http.Request) bool) {
 	mux.HandleFunc("GET /playground/assets/{file}", func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("file")
 		contentType := "text/javascript; charset=utf-8"
@@ -29,9 +32,46 @@ func Register(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", contentType)
 		w.Write(body)
 	})
+	mux.HandleFunc("GET /web/assets/{file...}", func(w http.ResponseWriter, r *http.Request) {
+		name := path.Clean(r.PathValue("file"))
+		if name == "." || name == ".." {
+			http.NotFound(w, r)
+			return
+		}
+		body, err := assets.ReadFile("assets/web/assets/" + name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		securityHeaders(w)
+		w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(name)))
+		_, _ = w.Write(body)
+	})
+	webPage := func(w http.ResponseWriter, r *http.Request) {
+		body, err := fs.ReadFile(assets, "assets/web/index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		securityHeaders(w)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(body)
+	}
+	mux.HandleFunc("GET /login", webPage)
+	for _, route := range []string{"/docs", "/examples"} {
+		mux.HandleFunc("GET "+route, func(w http.ResponseWriter, r *http.Request) {
+			if guard != nil && !guard(w, r) {
+				return
+			}
+			webPage(w, r)
+		})
+	}
 	mux.HandleFunc("GET /playground", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/playground" {
 			http.NotFound(w, r)
+			return
+		}
+		if guard != nil && !guard(w, r) {
 			return
 		}
 		securityHeaders(w)

@@ -6,7 +6,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
-  use: { baseURL: 'http://127.0.0.1:18780', trace: 'retain-on-failure' },
+  globalSetup: './test/playground/auth-setup.mjs',
+  use: { baseURL: 'http://127.0.0.1:18780', trace: 'retain-on-failure', storageState: 'test-results/auth-state.json' },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile', use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },

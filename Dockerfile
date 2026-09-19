@@ -1,8 +1,16 @@
+FROM node:22-alpine AS web
+WORKDIR /src
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY web ./web
+RUN npm run build:web
+
 FROM golang:1.27.1-alpine@sha256:4cb7ac979db5fcc41cae44b2227ba5ab8a51e8807f40d9ba4dee20a0ad960b5b AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY --from=web /src/internal/api/http/playground/assets/web ./internal/api/http/playground/assets/web
 ARG VERSION=2.0.0
 ARG COMMIT=unknown
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/api-engine ./cmd/api-engine \

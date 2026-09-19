@@ -6,7 +6,7 @@ import (
 )
 
 func (s *Server) registerPlayground(mux *http.ServeMux) {
-	playground.Register(mux)
+	playground.Register(mux, s.authorizeWebPage)
 	s.registerPlaygroundSession(mux)
 	if s.PlaygroundAuth == nil {
 		return
@@ -32,4 +32,19 @@ func (s *Server) registerPlayground(mux *http.ServeMux) {
 	v2.ExecutionBasePath = "/playground/api/v2/executions"
 	v2.registerV2(mux, protection)
 	mux.Handle("POST /playground/api/v2/validate", protection.Handler(http.HandlerFunc(v2.validateRequest)))
+}
+
+func (s *Server) authorizeWebPage(w http.ResponseWriter, r *http.Request) bool {
+	if s.PlaygroundSession == nil {
+		return true
+	}
+	cookie, err := r.Cookie(playgroundSessionCookie)
+	if err == nil {
+		_, err = s.PlaygroundSession.Authenticate(r.Context(), cookie.Value)
+	}
+	if err == nil {
+		return true
+	}
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	return false
 }

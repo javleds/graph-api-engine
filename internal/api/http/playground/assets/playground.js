@@ -87,6 +87,14 @@ const example = {
     ],
   },
 };
+const pokemonExample = {
+  definition: { version: 1, api: { baseUrl: "https://pokeapi.co/api/v2", limits: { requests: 5, per: "1s", concurrency: 2 } }, calls: { name: "pokemon", type: "single", request: { method: "GET", path: "/pokemon/ditto" } } },
+};
+if (new URLSearchParams(location.search).get("example") === "pokemon") {
+  $("request").value = JSON.stringify(pokemonExample, null, 2);
+  $("request").dispatchEvent(new Event("input"));
+}
+$("logout")?.addEventListener("click", async () => { await fetch("/playground/api/session", { method: "DELETE" }); location.assign("/login"); });
 let generation = 0;
 let controller = null;
 let timer = null;
