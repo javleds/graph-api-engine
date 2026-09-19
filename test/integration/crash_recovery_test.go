@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -29,12 +30,8 @@ func TestCrashRecoveryDoesNotReexecuteAcceptedTrees(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests.Add(1); w.Write([]byte(`[]`)) }))
 	defer upstream.Close()
 	cfg := fixtureConfig(t, upstream.URL, upstream.URL)
-	path := filepath.Join(t.TempDir(), "config.json")
-	data, err := json.Marshal(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	path := filepath.Join(t.TempDir(), "config.yml")
+	if err := os.WriteFile(path, crashRecoveryYAML(cfg), 0600); err != nil {
 		t.Fatal(err)
 	}
 	child := exec.Command(os.Args[0], "-test.run=^TestCrashRecoveryDoesNotReexecuteAcceptedTrees$")
@@ -59,6 +56,9 @@ func TestCrashRecoveryDoesNotReexecuteAcceptedTrees(t *testing.T) {
 	if requests.Load() != 0 {
 		t.Fatal("recovery performed an upstream request")
 	}
+}
+func crashRecoveryYAML(cfg *config.Config) []byte {
+	return []byte(fmt.Sprintf("http:\n  address: %q\n  publicBaseUrl: %q\nstorage:\n  path: %q\n  minimumFreeDiskBytes: %d\ncache:\n  path: %q\nsecurity:\n  principalsFile: %q\n  identityKeyFile: %q\n  encryption:\n    activeKeyId: %q\n    keyFiles:\n      %q: %q\n  egress:\n    upstreamAllowedOrigins: [%q]\n    webhookAllowedOrigins: [%q]\n    allowedPrivateCIDRs: [%q]\n    allowHTTPForDevelopment: %t\n", cfg.HTTP.Address, cfg.HTTP.PublicBaseURL, cfg.Storage.Path, cfg.Storage.MinimumFreeDiskBytes, cfg.Cache.Path, cfg.Security.PrincipalsFile, cfg.Security.IdentityKeyFile, cfg.Security.Encryption.ActiveKeyID, cfg.Security.Encryption.ActiveKeyID, cfg.Security.Encryption.KeyFiles[cfg.Security.Encryption.ActiveKeyID], cfg.Security.Egress.UpstreamAllowedOrigins[0], cfg.Security.Egress.WebhookAllowedOrigins[0], cfg.Security.Egress.AllowedPrivateCIDRs[0], cfg.Security.Egress.AllowHTTPForDevelopment))
 }
 func writeInterruptedJobs(t *testing.T, path string) {
 	t.Helper()

@@ -14,6 +14,14 @@ import (
 var environmentReference = regexp.MustCompile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}")
 
 func decodeYAML(data []byte, lookup func(string) (string, bool)) (*Config, error) {
+	canonical, err := normalizeYAML(data, lookup)
+	if err != nil {
+		return nil, err
+	}
+	return decodeJSON(canonical)
+}
+
+func normalizeYAML(data []byte, lookup func(string) (string, bool)) ([]byte, error) {
 	document, err := readYAMLDocument(data)
 	if err != nil {
 		return nil, err
@@ -35,7 +43,7 @@ func decodeYAML(data []byte, lookup func(string) (string, bool)) (*Config, error
 	if err != nil {
 		return nil, fmt.Errorf("normalize configuration YAML: %w", err)
 	}
-	return decodeJSON(canonical)
+	return canonical, nil
 }
 
 func readYAMLDocument(data []byte) (*yaml.Node, error) {

@@ -11,11 +11,21 @@ import (
 	"github.com/javleds/api-engine/internal/definition/infrastructure/schema"
 )
 
-//go:embed defaults.json
-var defaultsJSON []byte
+//go:embed defaults.yml
+var defaultsYAML []byte
 
 // Default returns structural defaults; deployment secrets, origins and public URL remain required.
-func Default() Config { var result Config; _ = json.Unmarshal(defaultsJSON, &result); return result }
+func Default() Config {
+	canonical, err := normalizeYAML(defaultsYAML, nil)
+	if err != nil {
+		panic("invalid embedded configuration defaults: " + err.Error())
+	}
+	var result Config
+	if err := json.Unmarshal(canonical, &result); err != nil {
+		panic("decode embedded configuration defaults: " + err.Error())
+	}
+	return result
+}
 func Load(path string) (*Config, error) {
 	if path == "" {
 		path = os.Getenv("ENGINE_CONFIG")

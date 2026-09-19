@@ -12,7 +12,7 @@ import (
 
 func serve(args []string, migrateOnly bool) error {
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
-	path := flags.String("config", "", "operator JSON configuration")
+	path := flags.String("config", "", "operator YAML configuration")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}

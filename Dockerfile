@@ -18,4 +18,4 @@ USER 65532:65532
 ENV GOMEMLIMIT=768MiB
 EXPOSE 8080
 ENTRYPOINT ["/api-engine"]
-CMD ["serve", "--config", "/etc/api-engine/config.json"]
+CMD ["serve", "--config", "/etc/api-engine/config.yml"]

@@ -2,14 +2,14 @@ services:
   # Owns the HTTP API and local worker; databases remain on this instance's volume.
   api-engine:
     build: .
-    command: ["serve", "--config", "/etc/api-engine/config.json"]
+    command: ["serve", "--config", "/etc/api-engine/config.yml"]
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - engine-data:/data
       - type: bind
-        source: ./config/config.json
-        target: /etc/api-engine/config.json
+        source: ./config/config.yml
+        target: /etc/api-engine/config.yml
         read_only: true
         bind:
           create_host_path: false

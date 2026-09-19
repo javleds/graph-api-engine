@@ -13,7 +13,7 @@ import (
 
 func validate(args []string) error {
 	flags := flag.NewFlagSet("validate", flag.ContinueOnError)
-	cfgPath := flags.String("config", "", "optional operator JSON config")
+	cfgPath := flags.String("config", "", "optional operator YAML config")
 	path := flags.String("file", "", "input JSON file")
 	if err := flags.Parse(args); err != nil {
 		return err

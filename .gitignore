@@ -6,6 +6,7 @@
 *.db-shm
 *.db-wal
 .DS_Store
+/config/config.yml
 /config/config.json
 
 /node_modules/

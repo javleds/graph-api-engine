@@ -17,7 +17,7 @@ func main() {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: api-engine serve --config config.json | validate --file definition.json | migrate --config config.json | version")
+		return fmt.Errorf("usage: api-engine serve --config config.yml | validate --file definition.json | migrate --config config.yml | version")
 	}
 	switch args[0] {
 	case "version":
