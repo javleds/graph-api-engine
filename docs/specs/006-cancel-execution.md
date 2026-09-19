@@ -87,3 +87,7 @@ Ninguna; se conserva el contrato de estados usando código de cancelación expl�
 1. Caso de uso, puertos y registro dispatcher; probar aislamiento y persistencia/CAS.
 2. Rutas autenticadas/locales y wiring bootstrap; probar cancelación contra upstream real bloqueado y cierre v2.
 3. Botón y estado UI con control de sesiones; pruebas desktop/mobile y documentación. Verificar checks y servicio local, registrar commits por etapa.
+
+## Garantía de snapshot durante cancelación
+
+El caso de uso captura secuencia antes de leer el checkpoint y pasa también su revisión (−1 si todavía no existe). El finalizador rechaza avances de secuencia o revisión entre esa lectura y la transacción terminal, y el caso de uso vuelve a leer/reintentar dentro del timeout. Los contadores durables se consultan dentro de la transacción final. Así no se asocia un reporte viejo a fragmentos nuevos, incluyendo checkpoints que sólo avanzan metadata.

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 
 	d "github.com/javleds/api-engine/internal/execution/domain"
@@ -36,6 +37,23 @@ func (f *ExecutionFinalizer) Finish(ctx context.Context, c d.ExecutionCompletion
 		return err
 	}
 	defer tx.Rollback()
+	if c.APIVersion == 2 && c.ExpectedCheckpointRevision != nil {
+		var revision int64
+		if err := tx.QueryRowContext(ctx, `SELECT COALESCE((SELECT revision FROM v2_tasks WHERE execution_id=? AND task_key='coordinator'),-1)`, c.ID).Scan(&revision); err != nil {
+			return err
+		}
+		if revision != *c.ExpectedCheckpointRevision {
+			return d.ErrVersionConflict
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT logical_requests,http_attempts FROM v2_state WHERE execution_id=?`, c.ID).Scan(&c.Progress.LogicalRequests, &c.Progress.HTTPAttempts); err != nil {
+			return err
+		}
+		progress, err := json.Marshal(c.Progress)
+		if err != nil {
+			return err
+		}
+		prepared.progress = string(progress)
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE executions SET status=?,error_json=?,error_report_json=?,progress_json=?,finished_at=?,result_expires_at=?,version=version+1 WHERE id=? AND version=? AND (status='running' OR (status='pending' AND ?='failed'))`, c.Status, prepared.failure, prepared.report, prepared.progress, c.FinishedAt.UnixMilli(), prepared.expires, c.ID, c.ExpectedVersion, c.Status)
 	if err != nil {
 		return err

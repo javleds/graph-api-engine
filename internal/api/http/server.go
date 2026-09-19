@@ -13,6 +13,7 @@ import (
 )
 
 type Server struct {
+	Cancel               *application.CancelExecution
 	APIVersion           int
 	V2Store              ports.V2Store
 	PlaygroundAuth       securityports.PrincipalAuthenticator
@@ -41,6 +42,7 @@ func (s *Server) Handler() http.Handler {
 	v2.ExecutionBasePath = "/v2/executions"
 	v2.registerV2(mux, nil)
 	mux.HandleFunc("POST /v1/executions", s.createExecution)
+	mux.HandleFunc("POST /v1/executions/{id}/cancel", s.cancelExecution)
 	mux.HandleFunc("GET /v1/executions/{id}", s.getExecution)
 	mux.HandleFunc("GET /v1/executions/{id}/result", s.getResult)
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "live"}) })

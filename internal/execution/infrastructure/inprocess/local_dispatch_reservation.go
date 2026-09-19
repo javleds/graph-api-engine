@@ -24,7 +24,16 @@ func (r *localDispatchReservation) Commit(_ context.Context, id domain.Execution
 		return domain.StorageError("DISPATCH_FAILED")
 	}
 	r.used = true
-	go r.dispatcher.run(id)
+	ctx, cancel := context.WithCancel(r.dispatcher.ctx)
+	if r.dispatcher.timeout > 0 {
+		cancel()
+		ctx, cancel = context.WithTimeout(r.dispatcher.ctx, r.dispatcher.timeout)
+	}
+	if r.dispatcher.running[id] == nil {
+		r.dispatcher.running[id] = make(map[*localDispatchReservation]context.CancelFunc)
+	}
+	r.dispatcher.running[id][r] = cancel
+	go r.dispatcher.run(ctx, cancel, id, r)
 	return nil
 }
 func (r *localDispatchReservation) Cancel() {

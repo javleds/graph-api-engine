@@ -12,6 +12,7 @@ import (
 type LocalExecutionDispatcher struct {
 	mu        sync.Mutex
 	closed    bool
+	running   map[domain.ExecutionID]map[*localDispatchReservation]context.CancelFunc
 	slots     chan struct{}
 	active    sync.WaitGroup
 	ctx       context.Context
@@ -23,7 +24,7 @@ type LocalExecutionDispatcher struct {
 
 func NewLocalExecutionDispatcher(ctx context.Context, runner ports.ExecutionRunner, capacity int, timeout time.Duration) *LocalExecutionDispatcher {
 	life, cancel := context.WithCancel(ctx)
-	return &LocalExecutionDispatcher{ctx: life, cancel: cancel, runner: runner, slots: make(chan struct{}, capacity), timeout: timeout}
+	return &LocalExecutionDispatcher{ctx: life, cancel: cancel, runner: runner, slots: make(chan struct{}, capacity), timeout: timeout, running: make(map[domain.ExecutionID]map[*localDispatchReservation]context.CancelFunc)}
 }
 func (d *LocalExecutionDispatcher) Reserve(ctx context.Context) (ports.DispatchReservation, error) {
 	if err := ctx.Err(); err != nil {
@@ -54,19 +55,34 @@ func (d *LocalExecutionDispatcher) Wait(ctx context.Context) error {
 		return ctx.Err()
 	}
 }
-func (d *LocalExecutionDispatcher) run(id domain.ExecutionID) {
-	defer func() { <-d.slots; d.active.Done() }()
+func (d *LocalExecutionDispatcher) CancelExecution(id domain.ExecutionID) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, cancel := range d.running[id] {
+		cancel()
+	}
+}
+
+func (d *LocalExecutionDispatcher) run(ctx context.Context, cancel context.CancelFunc, id domain.ExecutionID, reservation *localDispatchReservation) {
+	defer func() {
+		cancel()
+		d.mu.Lock()
+		delete(d.running[id], reservation)
+		if len(d.running[id]) == 0 {
+			delete(d.running, id)
+		}
+		d.mu.Unlock()
+		<-d.slots
+		d.active.Done()
+	}()
 	defer func() {
 		if recover() != nil && d.OnFailure != nil {
 			d.OnFailure(id, fmt.Errorf("INTERNAL_WORKER_PANIC"))
 		}
 	}()
-	ctx, cancel := context.WithCancel(d.ctx)
-	if d.timeout > 0 {
-		cancel()
-		ctx, cancel = context.WithTimeout(d.ctx, d.timeout)
+	if err := ctx.Err(); err != nil {
+		return
 	}
-	defer cancel()
 	if err := d.runner.Run(ctx, id); err != nil && d.OnFailure != nil {
 		d.OnFailure(id, err)
 	}

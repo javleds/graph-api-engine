@@ -40,7 +40,13 @@ func (f *FinalizeExecution) Finish(ctx context.Context, completion domain.Execut
 		if err != nil {
 			return err
 		}
-		completion.LastSequence = strconv.FormatInt(sequence+1, 10)
+		nextSequence := strconv.FormatInt(sequence+1, 10)
+		// A cancellation supplies the sequence observed before reading its checkpoint.
+		// Never attach stale diagnostics to a newer committed prefix.
+		if completion.LastSequence != "" && completion.LastSequence != nextSequence {
+			return domain.ErrVersionConflict
+		}
+		completion.LastSequence = nextSequence
 		if completion.ResultExpiresAt.IsZero() {
 			completion.ResultExpiresAt = completion.FinishedAt.Add(7 * 24 * time.Hour)
 		}

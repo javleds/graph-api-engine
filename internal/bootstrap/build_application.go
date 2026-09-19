@@ -148,12 +148,12 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 			a.ready.Store(false)
 			return
 		}
+		if current.Status.Terminal() {
+			return
+		}
 		if current.APIVersion == 2 {
 			// Confirmed checkpoints remain resumable; never convert a storage outage to success.
 			a.ready.Store(false)
-			return
-		}
-		if current.Status.Terminal() {
 			return
 		}
 		err = finalizer.Finish(persist, domain.ExecutionCompletion{
@@ -180,7 +180,9 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 		ExecutionTimeout:  cfg.Executions.Timeout.Value(),
 		CheckCapacity:     a.checkCapacity,
 	}
+	canceller := &application.CancelExecution{Store: a.Store, Reader: a.Store, Finalizer: finalizer, Canceller: a.Dispatcher, Clock: clock.RealClock{}, PersistenceTimeout: cfg.Shutdown.PersistenceTimeout.Value(), ResultRetention: cfg.Storage.ResultRetention.Value()}
 	server := &api.Server{
+		Cancel:          canceller,
 		PlaygroundAuth:  security.PlaygroundAuthenticator{},
 		ValidateQuotas:  a.registerQuotas,
 		WebhookStatus:   outbox,

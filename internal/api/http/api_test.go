@@ -44,7 +44,8 @@ func newTestAPI(t *testing.T) (http.Handler, *executionsql.ExecutionStore, *test
 	store := executionsql.NewExecutionStore(db, protector)
 	dispatcher := &testDispatcher{}
 	create := &application.CreateExecution{Store: store, Dispatcher: dispatcher, Finalizer: executionsql.NewExecutionFinalizer(store), IDs: identifier.UUIDGenerator{}, Clock: clock.RealClock{}, IdentityKey: key, MetadataRetention: 30 * 24 * time.Hour}
-	server := &api.Server{PlaygroundAuth: security.PlaygroundAuthenticator{}, Create: create, Reader: store, V2Store: store, Results: store, Auth: testAuthenticator{}, Clock: clock.RealClock{}, Limits: definitionapp.DefaultValidationLimits(), MaxRequestBytes: 262144, MaxJSONDepth: 64}
+	cancel := &application.CancelExecution{Store: store, Reader: store, Finalizer: &application.FinalizeExecution{Store: store, Writer: executionsql.NewExecutionFinalizer(store)}, Canceller: dispatcher, Clock: clock.RealClock{}}
+	server := &api.Server{Cancel: cancel, PlaygroundAuth: security.PlaygroundAuthenticator{}, Create: create, Reader: store, V2Store: store, Results: store, Auth: testAuthenticator{}, Clock: clock.RealClock{}, Limits: definitionapp.DefaultValidationLimits(), MaxRequestBytes: 262144, MaxJSONDepth: 64}
 	return server.Handler(), store, dispatcher
 }
 func request(t *testing.T, h http.Handler, method, path string, body []byte, key, owner string) *httptest.ResponseRecorder {

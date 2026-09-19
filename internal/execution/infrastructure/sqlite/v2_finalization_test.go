@@ -58,3 +58,45 @@ func TestV2TerminalAndOutboxCommitTogether(t *testing.T) {
 		t.Fatalf("v1 result unexpectedly assembled %d %v", count, err)
 	}
 }
+
+func TestCancellationRejectsStaleCheckpointEvenWithoutNewChunks(t *testing.T) {
+	store, _ := testStore(t)
+	ctx := context.Background()
+	snapshot := testSnapshot("cancel-revision", false)
+	snapshot.APIVersion = 2
+	snapshot.DeadlineAt = time.Now().Add(time.Hour)
+	if _, _, err := store.Create(ctx, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SeedV2Tasks(ctx, snapshot.ID, "owner", 1, []d.V2Task{{Key: "coordinator", Payload: []byte(`{}`)}}); err != nil {
+		t.Fatal(err)
+	}
+	task, err := store.ReadV2Task(ctx, snapshot.ID, "coordinator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	revision := task.Revision
+	completion := d.ExecutionCompletion{ID: snapshot.ID, APIVersion: 2, Status: d.Failed, Error: &d.ExecutionFailure{Code: "EXECUTION_CANCELLED", Message: "cancelled"}, Report: d.EmptyReport(), FinishedAt: time.Now(), ResultExpiresAt: time.Now().Add(time.Hour), LastSequence: "1", ExpectedCheckpointRevision: &revision}
+	if err = store.CommitV2Task(ctx, d.V2Commit{ID: snapshot.ID, OwnerID: "owner", Generation: 1, Task: task}); err != nil {
+		t.Fatal(err)
+	}
+	finalizer := NewExecutionFinalizer(store)
+	if err = finalizer.Finish(ctx, completion); !errors.Is(err, d.ErrVersionConflict) {
+		t.Fatalf("stale revision accepted %v", err)
+	}
+	state, err := store.ReadV2State(ctx, snapshot.ID)
+	if err != nil || state.Terminal || state.LastSequence != "0" {
+		t.Fatalf("rollback %+v %v", state, err)
+	}
+	revision++
+	if err = store.ReserveV2Budget(ctx, snapshot.ID, 1, "attempt", 10); err != nil {
+		t.Fatal(err)
+	}
+	if err = finalizer.Finish(ctx, completion); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.Read(ctx, "owner", snapshot.ID)
+	if err != nil || current.Progress.HTTPAttempts != 1 {
+		t.Fatalf("durable attempts %+v %v", current.Progress, err)
+	}
+}

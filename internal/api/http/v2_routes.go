@@ -34,6 +34,11 @@ func (s *Server) registerV2(mux *http.ServeMux, protection *http.CrossOriginProt
 		create = protection.Handler(create)
 	}
 	mux.Handle("POST "+base, create)
+	cancel := http.Handler(http.HandlerFunc(s.cancelExecution))
+	if protection != nil {
+		cancel = protection.Handler(cancel)
+	}
+	mux.Handle("POST "+base+"/{id}/cancel", cancel)
 	mux.HandleFunc("GET "+base+"/{id}", s.getExecution)
 	mux.HandleFunc("GET "+base+"/{id}/chunks", s.getV2Chunks)
 	mux.HandleFunc("GET "+base+"/{id}/tree", s.getV2Tree)
