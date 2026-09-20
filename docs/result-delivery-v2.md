@@ -1,6 +1,6 @@
 ## V2 · Cada cadena completa, sin esperar al resto
 
-V2 publica resultados definitivos durante la ejecución. Una raíz `single` está lista al terminar ella y todos sus hijos; una raíz `collection` publica cada elemento con todos sus descendientes. La cadena ya publicada no cambia. El recorrido actual es secuencial: las raíces siguen el orden del request, y una llamada lenta puede retrasar lo que viene después.
+V2 publica resultados definitivos durante la ejecución. Una raíz `single` está lista al terminar ella y todos sus hijos; una raíz `collection` publica cada elemento con todos sus descendientes. La cadena ya publicada no cambia. Las nuevas ejecuciones procesan ramas independientes en paralelo, con concurrencia acotada y respetando cuotas y reintentos. Los resultados se publican por orden de finalización, no por posición en el request.
 
 ### Cómo consultar los resultados
 
@@ -27,7 +27,9 @@ Este fragmento corresponde al campo `webhook` del request:
 ```json
 {
   "url": "https://consumer.example/events",
-  "payload": "status"
+  "payload": "status",
+  "ordering": "completion",
+  "maxInFlight": 1
 }
 ```
 
@@ -38,7 +40,22 @@ En V2, `payload` admite sólo `"status"` o puede omitirse; `"result"` se rechaza
 | `node.finished` | Esta cadena terminó. Su `status` puede ser `completed`, `completed_with_errors` o `failed`. | `eventId`, `executionId`, `nodeId`, `sequence`, estado, `result`, diagnósticos y links. |
 | `execution.completed`, `execution.completed_with_errors` o `execution.failed` | El engine dejó de producir resultados. | Resumen, `resultCount`, `lastResultSequence`, `lastSequence` de chunks y links. No confirma que todos los webhooks de nodo hayan llegado. |
 
-Puede haber duplicados y entregas fuera de orden. Deduplica por `eventId` y no interpretes el orden HTTP como el orden de la colección. Reintentos o latencia pueden hacer que el aviso terminal llegue antes que una entrega de nodo. Puedes recuperar lo faltante mediante `/results`.
+#### Orden y concurrencia del receptor
+
+Estos campos son opcionales y exclusivos de V2. Sus defaults se aplican a ejecuciones nuevas; las ya guardadas conservan su política anterior.
+
+| Configuración | Entrega de webhooks |
+| --- | --- |
+| `ordering: "completion"`, `maxInFlight: 1` (default) | La primera cadena que termina se habilita primero. La siguiente espera confirmación o fallo definitivo de la anterior. |
+| `ordering: "completion"`, `maxInFlight: 4` | Hasta cuatro entregas pendientes de resolución, seleccionadas por orden de finalización. |
+| `ordering: "source"`, `maxInFlight: 1` | Espera las posiciones anteriores del request y colección; entrega una a la vez. |
+| `ordering: "source"`, `maxInFlight: 4` | Admite hasta cuatro entregas en orden original, sin garantizar orden de recepción ni procesamiento remoto. |
+
+`maxInFlight` debe ser un entero positivo. El límite efectivo no supera `webhooks.maxConcurrent` del servicio. Cualquier respuesta **`2xx`**, incluido `202`, confirma recepción; no prueba que el receptor haya terminado su trabajo interno. Mientras una entrega se reintenta, conserva su lugar en la ventana. Al agotar intentos, vencer o fallar definitivamente, permite avanzar a las siguientes.
+
+El orden de webhook **no cambia el paralelismo del engine ni la disponibilidad por API**. Si Bulbasaur tarda 20 segundos y Charizard 2, Charizard aparece por API a los 2; con `source`, su webhook espera a Bulbasaur. La espera es durable, no un grafo acumulado en RAM, pero consume almacenamiento y plazo de entrega.
+
+Puede haber duplicados y entregas fuera de orden. Deduplica por `eventId` y no interpretes el orden HTTP como el orden de la colección. Con la nueva política, el aviso terminal espera a que las entregas de nodo estén resueltas, incluso si terminaron fallidas: no garantiza recepción exitosa de todas. Las ejecuciones antiguas mantienen su comportamiento previo, donde un terminal podía adelantarse a un nodo reintentado. Puedes recuperar lo faltante mediante `/results`.
 
 Consulta `nodeWebhookSummary` en el estado y `GET /v2/executions/{id}/webhooks?after=0&limit=100` para ver entregas, intentos y errores. **El estado del nodo y el estado de su webhook son independientes.**
 
@@ -57,13 +74,13 @@ El límite de **chunk es fijo, 256 KiB**. El límite de **webhook es configurabl
 
 ### Ejemplo: idioma, Bulbasaur y el siguiente Pokémon
 
-Con `idioma` primero en el request, V2 publica esa raíz cuando termina. Después, Bulbasaur aparece cuando su llamada a `especie` y todos los demás descendientes terminan; no necesita esperar al siguiente Pokémon. Cada resultado queda fijo en el viewer y puede recibirse por webhook.
+V2 puede resolver `idioma` y varios Pokémon a la vez. Bulbasaur aparece cuando su llamada a `especie` y todos los demás descendientes terminan; no necesita esperar a los otros Pokémon. Si Charizard termina primero, aparece primero, conservando su índice original. Cada resultado queda fijo en el viewer y puede recibirse por webhook según la política elegida.
 
 Si `especie` falla definitivamente, Bulbasaur puede publicarse como `completed_with_errors`, con datos válidos y diagnósticos. Un fallo sin datos puede producir `failed` con valor `null`. Una colección vacía produce cero elementos; una cancelación o fallo global no convierte una cadena interrumpida en completa. Usa el estado y el terminal para distinguir esos casos.
 
 ### Chunks, descarga y compatibilidad
 
-`/chunks?after=0&limit=100` permite seguir el protocolo de bajo nivel; su cursor es independiente del de `/results`. `/tree` explora hijos por ramas. `/export` descarga un corte de chunks en NDJSON: comprueba `export_end` y `complete: true`; si `terminal` es `false`, es un snapshot en curso, no el resultado final.
+`/chunks?after=0&limit=100` permite seguir el protocolo de bajo nivel; su cursor es independiente del de `/results`. Las ramas pueden intercalarse: usa `nodeId`, `parentId` e `index`, no un rango contiguo de chunks para reconstruir una cadena. `/tree` explora hijos por ramas. `/export` descarga un corte de chunks en NDJSON: comprueba `export_end` y `complete: true`; si `terminal` es `false`, es un snapshot en curso, no el resultado final.
 
 Los resultados expirados devuelven `410`; los cursores inválidos o adelantados, `422`. Un owner distinto, ID inexistente o nodo todavía no publicado devuelve `404`. Usa el mismo owner y permiso de lectura; los links no son públicos. En el playground, las rutas equivalentes usan `/playground/api/v2/executions` y su sesión.
 

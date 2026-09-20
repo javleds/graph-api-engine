@@ -18,7 +18,7 @@ Consultar `GET /v2/executions/{id}` para estado, errores, raíces, progreso y `v
 
 ## Consumir cadenas completas
 
-`GET /v2/executions/{id}/results?after=0&limit=100` lista resultados definitivos. Una raíz `single` entrega un resultado cuando ella y sus hijos terminan. Una raíz `collection` entrega uno por elemento con todos sus descendientes: Bulbasaur con su especie, luego el siguiente Pokémon. Una colección vacía no produce elementos. Una cadena interrumpida por cancelación no se anuncia como terminada.
+`GET /v2/executions/{id}/results?after=0&limit=100` lista resultados definitivos. Una raíz `single` entrega un resultado cuando ella y sus hijos terminan. Una raíz `collection` entrega uno por elemento con todos sus descendientes. Las nuevas ejecuciones procesan ramas independientes concurrentemente y publican por finalización: Charizard puede aparecer antes que Bulbasaur, conservando su índice original. Una colección vacía no produce elementos. Una cadena interrumpida por cancelación no se anuncia como terminada.
 
 El listado contiene `results`, `nextCursor`, `hasMore`, `terminal` y `lastSequence`. Cada resultado identifica `eventId`, `nodeId`, raíz, ubicación, secuencia y estado (`completed`, `completed_with_errors` o `failed`). Su cursor es independiente del cursor de chunks. Conservarlo como string decimal y guardarlo después de aplicar el lote; deduplicar por `eventId`. Incluso con `terminal: true`, consumir páginas pendientes hasta `lastSequence`.
 
@@ -75,7 +75,7 @@ Tipos y operaciones:
 
 `nodeId` identifica establemente el nodo. `parentId` enlaza con su contenedor; se omite en raíces. Una propiedad usa `key` (si se omite y no hay `index`, la clave es el string vacío); un elemento usa `index` numérico absoluto, incluyendo arrays paginados. `path` usa JSON Pointer con escape `~0`/`~1`. No interpretar IDs ni inferir índices del orden de llegada. El valor JSON de un nodo publicado no se reemplaza: se agregan descendientes y cierre.
 
-Conservar literales numéricos: JSON.parse convencional redondea enteros mayores a 2^53−1. Usar un parser que preserve números, o mantener el texto raw. `null` es un valor definitivo; un contenedor pendiente todavía puede recibir hijos. Un fallo técnico puede dejar contenedores pendientes en fragmentos previos: el terminal marca el resultado global como incompleto/fallido. Nunca interpretar la ausencia de `close` como éxito.
+Las ramas concurrentes pueden intercalar sus chunks. El padre se declara antes de sus hijos y se cierra después de ellos; no asumir un rango contiguo por cadena. Conservar literales numéricos: JSON.parse convencional redondea enteros mayores a 2^53−1. Usar un parser que preserve números, o mantener el texto raw. `null` es un valor definitivo; un contenedor pendiente todavía puede recibir hijos. Un fallo técnico puede dejar contenedores pendientes en fragmentos previos: el terminal marca el resultado global como incompleto/fallido. Nunca interpretar la ausencia de `close` como éxito.
 
 Un escalar que no cabe en un fragmento falla con `RESULT_VALUE_TOO_LARGE`; no se parte su string en pedazos arbitrarios. El resultado parcial confirmado sigue siendo consultable. Superar presupuestos produce `EXECUTION_BUDGET_EXCEEDED`.
 
@@ -103,7 +103,22 @@ El evento de nodo incluye versión, `eventId`, `executionId`, `nodeId`, secuenci
 
 `webhooks.maxPayloadBytes` (256 KiB por defecto) incluye todo el envelope. Si se supera, la entrega termina `failed` con `WEBHOOK_PAYLOAD_TOO_LARGE`, sin HTTP ni truncamiento. Esto no convierte en fallido el nodo: su contenido sigue disponible por API.
 
-Puede haber duplicados y entregas fuera de orden. Deduplicar por `eventId`, también al combinar webhook y API. El terminal conserva `lastSequence`, `resultExpiresAt` y links, e incluye `resultCount` y `lastResultSequence` para las nuevas ejecuciones. Indica que terminó el productor, no que el receptor haya recibido todos los nodos. Los reintentos tienen un plazo y no garantizan recepción.
+La política opcional del webhook se configura en el body:
+
+```json
+{
+  "url": "https://consumer.example/events",
+  "payload": "status",
+  "ordering": "completion",
+  "maxInFlight": 1
+}
+```
+
+`ordering` acepta `completion` (default, por finalización) o `source` (posición original de raíces y elementos). `maxInFlight` es un entero positivo, default `1`, limitado operativamente por `webhooks.maxConcurrent`. Con uno, esperar respuesta `2xx` o fallo definitivo antes de admitir la siguiente entrega; con un valor mayor, permitir varias pendientes de resolución. Un reintento conserva su lugar en esa ventana. `source` con varias entregas ordena la admisión, no la recepción remota. Un `202` confirma recepción, no el fin del procesamiento del receptor. Estos campos se rechazan en V1.
+
+Ninguna política retrasa el procesamiento del engine ni la publicación por API. Esperar una cadena lenta sólo retrasa los webhooks dependientes de su orden. Las esperas se persisten y consumen presupuesto/plazo de entrega.
+
+Puede haber duplicados y entregas fuera de orden. Deduplicar por `eventId`, también al combinar webhook y API. El terminal conserva `lastSequence`, `resultExpiresAt` y links, e incluye `resultCount` y `lastResultSequence` para las nuevas ejecuciones. Con la nueva política se admite después de resolver las entregas de nodo, incluidas las fallidas: no garantiza recepción de todas. Las ejecuciones guardadas antes del cambio conservan su despacho anterior y no adquieren defaults retroactivamente.
 
 Consultar el resumen de notificaciones de nodo en el estado de ejecución y `GET /v2/executions/{id}/webhooks?after=0&limit=100` para entregas materializadas, intentos y errores. El cursor corresponde a la secuencia de resultados; una entrega puede cambiar de estado, por lo que volver a consultar su página permite revisar reintentos. El resumen incluye eventos pendientes de entrar en la outbox. El campo histórico `webhook` sigue describiendo únicamente el aviso terminal.
 
