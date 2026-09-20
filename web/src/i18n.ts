@@ -1,3 +1,5 @@
+import { createI18n } from 'vue-i18n';
+
 export type UILanguage = 'es' | 'en';
 
 // Strings still sourced by legacy markdown/templates. Keeping them in the
@@ -71,8 +73,9 @@ export const cataloguedSpanishStrings = [
 export const uiLanguage = (): UILanguage =>
   document.documentElement.dataset.uiLanguage === 'en' ? 'en' : 'es';
 
-const messages = {
+export const messages = {
   es: {
+    common: { definedPerItem: 'Se define por cada elemento', empty: 'vacío' },
     docs: 'Docs', examples: 'Ejemplos', playground: 'Playground', logout: 'Cerrar sesión',
     loginEyebrow: 'CONSOLA DE EJECUCIÓN', loginTitle: 'Inicia sesión.', loginLead: 'Accede al playground y a la documentación del motor.', loginButton: 'Entrar al playground',
     docsEyebrow: 'DOCUMENTACIÓN INTERACTIVA', docsTitle: 'Opera y consume API Engine.', docsLead: 'Consulta la guía completa, los defaults y la configuración efectiva de este servicio.',
@@ -82,6 +85,7 @@ const messages = {
     cataloguedSpanishStrings,
   },
   en: {
+    common: { definedPerItem: 'Defined per item', empty: 'empty' },
     docs: 'Docs', examples: 'Examples', playground: 'Playground', logout: 'Sign out',
     loginEyebrow: 'EXECUTION CONSOLE', loginTitle: 'Sign in.', loginLead: 'Access the playground and the engine documentation.', loginButton: 'Enter playground',
     docsEyebrow: 'INTERACTIVE DOCUMENTATION', docsTitle: 'Operate and consume API Engine.', docsLead: 'Review the complete guide, defaults, and effective service configuration.',
@@ -91,6 +95,13 @@ const messages = {
     cataloguedSpanishStrings,
   },
 } as const;
+
+export const i18n = createI18n({
+  legacy: false,
+  locale: uiLanguage(),
+  fallbackLocale: 'es',
+  messages,
+});
 
 export function messagesFor(language: UILanguage = uiLanguage()) {
   return messages[language];

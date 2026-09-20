@@ -7,13 +7,15 @@ import serviceGuideEnglish from '../../docs/service-configuration.en.md?raw';
 import requestGuideEnglish from '../../docs/api-request-guide.en.md?raw';
 import ResultsGuide from './ResultsGuide.vue';
 import pokemonExample from '../../docs/request_examples/poke_api.json?raw';
-import { messagesFor, uiLanguage as currentUILanguage } from './i18n';
+import { useI18n } from 'vue-i18n';
+import { messagesFor } from './i18n';
 
 type Config = Record<string, unknown>;
 type Row = { path: string; description: string; defaultValue: unknown; currentValue: unknown };
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
+const { locale, t } = useI18n();
 const ui = messagesFor();
-const uiLanguage = currentUILanguage();
+const uiLanguage = locale.value as 'es' | 'en';
 const path = ref(location.pathname);
 const username = ref(''), password = ref(''), error = ref(''), loading = ref(false);
 const docsTabs = [
@@ -223,9 +225,9 @@ function valueAt(source: unknown, field: string): unknown {
   return field.split('.').reduce<unknown>((value, key) => value && typeof value === 'object' && !Array.isArray(value) ? (value as Config)[key] : undefined, source);
 }
 function display(value: unknown, perItem = false): string {
-  if (perItem) return uiLanguage === 'en' ? 'Defined per item' : 'Se define por cada elemento';
+  if (perItem) return t('common.definedPerItem');
   if (value === undefined) return '—';
-  return typeof value === 'string' ? (value || (uiLanguage === 'en' ? 'empty' : 'vacío')) : JSON.stringify(value);
+  return typeof value === 'string' ? (value || t('common.empty')) : JSON.stringify(value);
 }
 function fieldSection(field: string) { return field.includes('.') ? field.split('.')[0] : 'root'; }
 const sectionTitlesEnglish: Record<string, string> = { root: 'Document', http: 'HTTP', executions: 'Executions', fetch: 'Fetch', throttle: 'Throttling', deduplication: 'Deduplication', storage: 'Storage', cache: 'Cache', webhooks: 'Webhooks', security: 'Security', maintenance: 'Maintenance', shutdown: 'Shutdown', observability: 'Observability' };

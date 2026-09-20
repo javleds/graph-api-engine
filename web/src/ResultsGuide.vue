@@ -5,11 +5,13 @@ import v1Guide from '../../docs/result-delivery-v1.md?raw';
 import v2Guide from '../../docs/result-delivery-v2.md?raw';
 import v1GuideEnglish from '../../docs/result-delivery-v1.en.md?raw';
 import v2GuideEnglish from '../../docs/result-delivery-v2.en.md?raw';
-import { messagesFor, uiLanguage } from './i18n';
+import { useI18n } from 'vue-i18n';
+import { messagesFor } from './i18n';
 
 const version = ref<'v1' | 'v2'>('v1');
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
-const language = uiLanguage();
+const { locale } = useI18n();
+const language = locale.value as 'es' | 'en';
 const ui = messagesFor(language);
 const content = computed(() => markdown.render(language === 'en'
   ? (version.value === 'v1' ? v1GuideEnglish : v2GuideEnglish)
