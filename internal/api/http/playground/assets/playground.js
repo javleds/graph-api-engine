@@ -1,7 +1,7 @@
 import { initializeInputEditor } from "./input-editor.js";
 import { createV2Viewer } from "./v2-viewer.js";
 import { renderJSON } from "./json-viewer.js";
-import { locale, translateStatic } from "./i18n.js";
+import { locale, t, translateStatic } from "./i18n.js";
 
 translateStatic();
 
