@@ -51,6 +51,8 @@ const sections = [
 const fields: Array<[string, string]> = [
   ['version', 'Versión del formato de configuración que interpreta el servicio.'],
   ['mode', 'Modo operativo y conjunto de drivers admitido por esta versión.'],
+  ['ui.enabled', 'Activa o desactiva la consola web interactiva.'],
+  ['ui.language', 'Idioma de los textos de la consola web: es o en.'],
   ['http.address', 'Dirección y puerto donde el proceso HTTP acepta conexiones.'],
   ['http.publicBaseUrl', 'URL pública usada en enlaces y para decidir si la cookie requiere HTTPS.'],
   ['http.readHeaderTimeout', 'Tiempo máximo para recibir las cabeceras HTTP.'],
