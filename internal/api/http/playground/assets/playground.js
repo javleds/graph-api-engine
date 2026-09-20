@@ -359,7 +359,7 @@ function renderWebhook(status) {
     button.className = "secondary";
     button.id = "refresh-webhook";
     button.disabled = tracking;
-    button.textContent = "Actualizar webhook";
+    button.textContent = t("refreshWebhook");
     button.addEventListener("click", () => startTracking(currentID, false));
     elements.webhook.append(button);
   }
