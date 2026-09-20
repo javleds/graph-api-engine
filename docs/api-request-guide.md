@@ -265,11 +265,11 @@ Agregar junto a `definition`:
 }
 ```
 
-Este fragmento es el valor de `webhook`, no un request completo. `url` es obligatorio y debe estar autorizado. `method` acepta `POST`, `PUT` o `PATCH` y por defecto es `POST`. `payload` acepta `status` (default) o `result`.
+Este fragmento es el valor de `webhook`, no un request completo. `url` es obligatorio y debe estar autorizado. `method` acepta `POST`, `PUT` o `PATCH` y por defecto es `POST`. En V1, `payload` acepta `status` (default) o `result`. En V2 usa `status` u omite el campo: las nuevas ejecuciones envían automáticamente cada cadena terminada con sus datos y el aviso terminal. En V2, `payload: result` se rechaza.
 
 `auth` admite los cuatro formatos del proveedor y además `hmac`. No configurar los headers reservados `Content-Type`, `X-Engine-Event-Id`, `X-Engine-Timestamp` o `X-Engine-Signature`. HMAC firma `eventId.timestamp.rawBody` con SHA-256; ver [spec §19](specs/spec-api-execution-engine-go-v1.1.md#section-19) para el contrato de entrega.
 
-La notificación puede representar éxito, éxito parcial o fallo y puede duplicarse por reintentos: deduplicar por `eventId`. `payload: result` está sujeto al límite de payload; el resultado puede omitirse explícitamente y seguir disponible en el endpoint de resultado. Un fallo del webhook no cambia el estado de la ejecución.
+La notificación puede representar éxito, éxito parcial o fallo y puede duplicarse por reintentos: deduplicar por `eventId`. En V1, `payload: result` está sujeto al límite de payload; el resultado puede omitirse explícitamente y seguir disponible en el endpoint de resultado. En V2, un mensaje de nodo demasiado grande falla con `WEBHOOK_PAYLOAD_TOO_LARGE`, sin enviar una versión reducida; la cadena sigue disponible por API. Un fallo del webhook no cambia el estado de la ejecución. La pestaña **Obtención de resultados** del portal compara ambas versiones.
 
 ## 11. Validación y límites que el schema no expresa
 
@@ -321,4 +321,4 @@ Para contratos adicionales, consultar el [schema de resultados](../contracts/exe
 
 ## Ejecuciones v2
 
-El mismo grafo se puede enviar a `/v2/executions`, manteniendo `definition.version: 1`. Cambia la entrega: fragmentos progresivos, árbol bajo demanda y exportación NDJSON. El webhook v2 admite sólo payload `status`. Ver [guía v2](api-v2-guide.md) y [schema específico](../contracts/create_execution_v2.schema.json).
+El mismo grafo se puede enviar a `/v2/executions`, manteniendo `definition.version: 1`. Cambia la entrega: cadenas completas por elemento, fragmentos progresivos, árbol bajo demanda y exportación NDJSON. El webhook v2 admite sólo payload `status` en el request, pero las nuevas ejecuciones envían eventos `node.finished` con sus datos además del cierre. Ver [obtención de resultados V1](result-delivery-v1.md), [obtención de resultados V2](result-delivery-v2.md), [protocolo v2](api-v2-guide.md) y [schema específico](../contracts/create_execution_v2.schema.json).
