@@ -12,9 +12,21 @@ curl -X POST http://localhost:8080/v2/executions \
   --data-binary @request.json
 ```
 
-La respuesta 202 contiene `id`, `status` y links `self`, `chunks`, `tree`, `export`. Un replay idempotente terminal devuelve 200. V1 y v2 tienen namespaces de idempotencia independientes. Un ID v2 consultado mediante v1 devuelve 404, y viceversa. Se mantienen autorización y aislamiento por owner.
+La respuesta 202 contiene `id`, `status` y links de consulta. Las nuevas ejecuciones también anuncian resultados completos mediante `results`. Un replay idempotente terminal devuelve 200. V1 y v2 tienen namespaces de idempotencia independientes. Un ID v2 consultado mediante v1 devuelve 404, y viceversa. Se mantienen autorización y aislamiento por owner.
 
 Consultar `GET /v2/executions/{id}` para estado, errores, raíces, progreso y `v2`: última secuencia, bytes publicados/almacenados, deadline, recuperaciones y presupuestos consumidos. Los estados conservan `pending`, `running`, `completed`, `completed_with_errors`, `failed`. La metadata puede seguir disponible después de expirar los fragmentos.
+
+## Consumir cadenas completas
+
+`GET /v2/executions/{id}/results?after=0&limit=100` lista resultados definitivos. Una raíz `single` entrega un resultado cuando ella y sus hijos terminan. Una raíz `collection` entrega uno por elemento con todos sus descendientes: Bulbasaur con su especie, luego el siguiente Pokémon. Una colección vacía no produce elementos. Una cadena interrumpida por cancelación no se anuncia como terminada.
+
+El listado contiene `results`, `nextCursor`, `hasMore`, `terminal` y `lastSequence`. Cada resultado identifica `eventId`, `nodeId`, raíz, ubicación, secuencia y estado (`completed`, `completed_with_errors` o `failed`). Su cursor es independiente del cursor de chunks. Conservarlo como string decimal y guardarlo después de aplicar el lote; deduplicar por `eventId`. Incluso con `terminal: true`, consumir páginas pendientes hasta `lastSequence`.
+
+`GET /v2/executions/{id}/results/{nodeId}` devuelve metadata, `data`, diagnósticos y `complete: true` al final. El servidor transmite desde disco; este JSON no tiene el máximo de 256 KiB del webhook. Si la transferencia se interrumpe o falta su cierre válido, repetirla. Los datos publicados son inmutables hasta su expiración. Los fallos de hijos mantienen los datos válidos y los diagnósticos; un fallo sin datos se distingue de un `null` exitoso por el estado.
+
+El playground presenta páginas estables de resultados y un detalle seleccionado. La llegada de más resultados no cambia la página leída; un aviso permite actualizarlos. Los resultados grandes pueden descargarse o explorarse por ramas sin cargar todo en memoria. Árbol incremental y chunks permanecen disponibles como diagnóstico.
+
+Estas capacidades aplican a ejecuciones nuevas después de migrar a 000003. Las anteriores conservan su protocolo previo y no generan resultados o eventos retrospectivos.
 
 ## Recibir fragmentos durante la ejecución
 
@@ -85,7 +97,17 @@ Sin la última línea, la descarga está incompleta y debe repetirse. Un export 
 
 ## Webhook
 
-V2 emite un webhook terminal con firma/reintentos existentes, estado, resumen, `lastSequence`, `resultExpiresAt` y links de consulta. No envía un webhook por chunk ni incluye el resultado completo. Usar los links con las credenciales del mismo owner. Los jobs del playground enlazan sus rutas locales `/playground/api/v2`.
+Las nuevas ejecuciones v2 con webhook envían `node.finished` por cada cadena completa, además del aviso terminal. No requiere campos adicionales: `webhook.payload` sigue admitiendo `status`; los eventos de nodo incluyen siempre su resultado. Sin webhook se conserva el mismo listado de resultados por API. La API también permite recuperar notificaciones fallidas cuando hay webhook.
+
+El evento de nodo incluye versión, `eventId`, `executionId`, `nodeId`, secuencia, raíz, ubicación, estado, fecha, `errorSummary`, `errors`, `result`, `complete` y links. `result` corresponde exactamente a `data` del endpoint del nodo, preservando literales numéricos. La firma HMAC y los reintentos existentes se aplican al payload congelado; sus bytes e identidad no cambian entre intentos.
+
+`webhooks.maxPayloadBytes` (256 KiB por defecto) incluye todo el envelope. Si se supera, la entrega termina `failed` con `WEBHOOK_PAYLOAD_TOO_LARGE`, sin HTTP ni truncamiento. Esto no convierte en fallido el nodo: su contenido sigue disponible por API.
+
+Puede haber duplicados y entregas fuera de orden. Deduplicar por `eventId`, también al combinar webhook y API. El terminal conserva `lastSequence`, `resultExpiresAt` y links, e incluye `resultCount` y `lastResultSequence` para las nuevas ejecuciones. Indica que terminó el productor, no que el receptor haya recibido todos los nodos. Los reintentos tienen un plazo y no garantizan recepción.
+
+Consultar el resumen de notificaciones de nodo en el estado de ejecución y `GET /v2/executions/{id}/webhooks?after=0&limit=100` para entregas materializadas, intentos y errores. El cursor corresponde a la secuencia de resultados; una entrega puede cambiar de estado, por lo que volver a consultar su página permite revisar reintentos. El resumen incluye eventos pendientes de entrar en la outbox. El campo histórico `webhook` sigue describiendo únicamente el aviso terminal.
+
+Usar los links con las credenciales del mismo owner. Los jobs del playground enlazan sus rutas locales `/playground/api/v2`. V1 y ejecuciones anteriores a 000003 conservan sus webhooks terminales previos.
 
 ## Abortar el árbol
 

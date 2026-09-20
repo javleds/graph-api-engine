@@ -9,7 +9,7 @@ V2 guarda resultados y checkpoints en el mismo SQLite persistente. **1 GiB es ca
 | Campo | Default | Aplicación |
 |---|---:|---|
 | `maxPublishedBytes` | 1,073,741,824 | Bytes JSON de fragmentos por job, reservando 256 KiB para cierre. |
-| `maxStoredBytes` | 8,589,934,592 | Bytes lógicos globales de chunks, proyección, inputs y checkpoints; reserva cierre por job activo. |
+| `maxStoredBytes` | 8,589,934,592 | Bytes lógicos globales de chunks, proyección, inputs, checkpoints, eventos y entregas de nodo; reserva cierre por job activo. |
 | `maxChunks` | 1,000,000 | Fragmentos por job, con un lugar reservado para terminal. |
 | `maxNodes` | 1,000,000 | Nodos JSON publicados por job. |
 | `maxPendingTasks` | 100,000 | Continuaciones persistidas pendientes por job. |
@@ -21,6 +21,18 @@ Cada respuesta upstream sigue limitada por `fetch.maxResponseBytes` (default 4 M
 SQLite ocupa más espacio físico que el JSON: cifrado serializado, índices, proyección para consultas, páginas libres y WAL. `maxStoredBytes` es una cota **lógica**, no del tamaño de archivos. `storage.minimumFreeDiskBytes` sigue comprobándose antes de avanzar; dejar espacio para escrituras, cierre y backups. Borrar filas permite reutilizar páginas, pero no encoge inmediatamente el archivo. Los inputs aceptados se eliminan cuando ninguna continuación los necesita. Los resultados/proyección expiran por `storage.resultRetention`; la metadata dura `metadataRetention`.
 
 Compose conserva el límite de contenedor de 1 GiB y `GOMEMLIMIT=768MiB`; son límites operativos generales del proceso, independientes del tamaño permitido para cada resultado.
+
+## Eventos y receptores lentos
+
+Cada cadena terminada confirma chunks finales, resultado, evento `node.finished` y checkpoint en la misma transacción, antes de iniciar otra llamada upstream. El worker libera referencias de trabajo innecesarias; mantiene páginas y ancestros todavía usados. El registro durable referencia los chunks y no duplica todo el subárbol.
+
+Un suscriptor independiente materializa webhooks en lotes acotados y rota entre ejecuciones. Congela/cifra el mensaje y avanza su cursor en una transacción. El dispatcher mantiene concurrencia acotada y reutiliza cada slot tan pronto termina, sin esperar al receptor más lento del lote. No requiere un broker y sigue siendo una sola instancia SQLite.
+
+`maxPendingDeliveries` incluye reservas de terminales activos. Una outbox llena deja eventos pendientes sin avanzar el cursor; no bloquea directamente al worker. También se respeta el presupuesto global de almacenamiento. Al acumular más resultados, el worker puede alcanzar su propio límite y terminar controladamente. No hay almacenamiento ilimitado.
+
+`deliveryMaxAge` empieza en la fecha del evento, incluyendo la espera por capacidad. Los eventos vencidos se registran `failed` con `DELIVERY_DEADLINE_EXCEEDED` y cero intentos HTTP. `storage.resultRetention` debe ser mayor o igual a ese plazo; la configuración inválida impide iniciar. Los eventos sin proyectar se conservan para cerrar sus entregas antes de la purga. El payload se limita al envelope completo: excesos producen `WEBHOOK_PAYLOAD_TOO_LARGE`, sin afectar el resultado del engine.
+
+Revisar separadamente estados de procesamiento y entrega. Un terminal recibido puede preceder a un nodo reintentado. El resumen de notificaciones y su listado paginado permiten distinguir cola pendiente, entregas exitosas y fallos. Los receptores deben deduplicar `eventId`; los bytes firmados se reutilizan exactamente durante todos los intentos.
 
 ## Evidencia reproducible
 
@@ -57,9 +69,9 @@ La publicación terminal y su webhook son una transacción. Failed no borra frag
 
 1. Detener limpiamente la instancia anterior. Confirmar que ningún proceso usa el directorio de datos.
 2. Respaldar **todo** el volumen, configuración y llaves en una ubicación protegida. No copiar únicamente engine.db mientras hay actividad WAL.
-3. Construir/iniciar el binario nuevo. La migración 000002 es aditiva; valida checksums, conserva filas v1 y les asigna api_version=1.
-4. Confirmar `/health/ready`, crear un job v2 controlado, observar chunks antes del fin y verificar su terminal/export.
+3. Construir/iniciar el binario nuevo. La migración 000003 añade resultados/eventos y reconstruye la outbox para permitir varios nodos por ejecución, conservando entregas e intentos existentes. Las ejecuciones anteriores no habilitan retroactivamente el nuevo contrato.
+4. Confirmar `/health/ready`, crear un job v2 controlado, observar un resultado completo antes del fin, verificar su JSON, evento de nodo y terminal. Revisar que el resumen de entrega distinga fallos del receptor y fallos del engine.
 
 No convertir resultados v1 ni ejecutar un backfill. No arrancar el binario anterior sobre una base con checkpoints v2. Para rollback, detener v2 y restaurar el respaldo previo y sus llaves; esto también descarta el trabajo creado después del respaldo. No ejecutar la migración down sobre datos que deban conservarse.
 
-Ver [contrato de consumo](api-v2-guide.md) y [spec fuente de verdad](specs/005-api-execution-engine-v2.md).
+Ver [contrato de consumo](api-v2-guide.md), [base v2](specs/005-api-execution-engine-v2.md) y [cadenas completas y eventos](specs/010-v2-complete-results-viewer.md).
