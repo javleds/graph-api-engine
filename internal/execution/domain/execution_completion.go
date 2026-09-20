@@ -6,6 +6,8 @@ type ExecutionCompletion struct {
 	ExpectedCheckpointRevision *int64
 	APIVersion                 int
 	LastSequence               string
+	LastResultSequence         string
+	ResultCount                int64
 	ExecutionBasePath          string
 	ID                         ExecutionID
 	ExpectedVersion            int64

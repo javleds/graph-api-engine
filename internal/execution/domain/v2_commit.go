@@ -8,6 +8,7 @@ type V2Commit struct {
 	Task         V2Task
 	NewTasks     []V2Task
 	Chunks       []V2Chunk
+	Results      []V2Result
 	Inputs       []V2Input
 	DeleteInputs []string
 	Limits       V2Limits

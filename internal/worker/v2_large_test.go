@@ -11,6 +11,7 @@ import (
 	fetch "github.com/javleds/api-engine/internal/fetch/domain"
 	dbplatform "github.com/javleds/api-engine/internal/platform/sqlite"
 	security "github.com/javleds/api-engine/internal/security/infrastructure"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -118,6 +119,16 @@ func TestV2LargeDurableResult(t *testing.T) {
 	minimum := int64(pages) * 8 * scalarBytes
 	if state.PublishedBytes < minimum || state.PublishedBytes > 1<<30 || !state.Terminal || state.Recoveries != 1 {
 		t.Fatalf("state=%+v minimum=%d", state, minimum)
+	}
+	if state.ResultCount != int64(pages*8) {
+		t.Fatalf("lost or duplicated results after recovery: %d", state.ResultCount)
+	}
+	resultPage, err := store.ReadV2Results(ctx, "owner", "large", state.ResultCount-1, 0, 1, time.Now())
+	if err != nil || len(resultPage.Results) != 1 {
+		t.Fatalf("final result page: %+v %v", resultPage, err)
+	}
+	if err = store.WriteV2Result(ctx, "owner", "large", resultPage.Results[0].NodeID, time.Now(), io.Discard); err != nil {
+		t.Fatalf("stream recovered result: %v", err)
 	}
 	for page := 1; page <= pages; page++ {
 		if count := fake.count("https://provider.test/root?page=" + strconv.Itoa(page)); count != 1 {

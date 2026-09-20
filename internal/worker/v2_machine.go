@@ -14,19 +14,22 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type v2Machine struct {
-	runner      *V2Runner
-	engine      *Engine
-	definition  definition.CompiledDefinition
-	id          execution.ExecutionID
-	owner       string
-	generation  int64
-	checkpoint  *v2Checkpoint
-	cachedKey   string
-	cachedValue any
-	sortedKeys  map[string][]string
+	runner         *V2Runner
+	engine         *Engine
+	definition     definition.CompiledDefinition
+	id             execution.ExecutionID
+	owner          string
+	generation     int64
+	checkpoint     *v2Checkpoint
+	cachedKey      string
+	cachedValue    any
+	sortedKeys     map[string][]string
+	sequence       int64
+	resultsEnabled bool
 }
 
 func (m *v2Machine) nodeID(path string) string {
@@ -47,6 +50,7 @@ func (m *v2Machine) call(indices []int) definition.CompiledCall {
 func (m *v2Machine) push(frame v2Frame) { m.checkpoint.Stack = append(m.checkpoint.Stack, frame) }
 func (m *v2Machine) pop() {
 	delete(m.sortedKeys, m.checkpoint.Stack[len(m.checkpoint.Stack)-1].NodeID)
+	m.checkpoint.Stack[len(m.checkpoint.Stack)-1] = v2Frame{}
 	m.checkpoint.Stack = m.checkpoint.Stack[:len(m.checkpoint.Stack)-1]
 }
 func (m *v2Machine) chunk(frame v2Frame, operation string, value any, commit *execution.V2Commit) {
@@ -127,9 +131,13 @@ func v2ChildRef(parent v2InputRef, key string) v2InputRef {
 }
 
 func (m *v2Machine) step(ctx context.Context, commit *execution.V2Commit) (boundary bool, err error) {
+	resultsBefore := len(commit.Results)
 	defer func() {
 		if recover() != nil {
 			err = errors.New("INTERNAL_WORKER_PANIC")
+		}
+		if len(commit.Results) > resultsBefore {
+			boundary = true
 		}
 	}()
 	if len(m.checkpoint.Stack) == 0 {
@@ -231,6 +239,9 @@ func (m *v2Machine) stepValue(ctx context.Context, frame v2Frame, index int, com
 func (m *v2Machine) stepItem(ctx context.Context, frame v2Frame, index int, commit *execution.V2Commit) error {
 	call := m.call(frame.Call)
 	if frame.Phase == "" {
+		if len(frame.Call) == 1 && call.Type == "collection" {
+			frame.FirstChunk = m.sequence + int64(len(commit.Chunks)) + 1
+		}
 		value, err := m.input(ctx, frame.Ref)
 		if err != nil {
 			return err
@@ -247,6 +258,7 @@ func (m *v2Machine) stepItem(ctx context.Context, frame v2Frame, index int, comm
 				m.failure(frame, "PARENT_NOT_ENRICHABLE", "assembly", commit)
 				m.chunk(frame, "value", nil, commit)
 				commit.Chunks[len(commit.Chunks)-1].Status = "failed"
+				m.finishResult(frame, "failed", commit)
 				m.pop()
 				return nil
 			}
@@ -255,6 +267,7 @@ func (m *v2Machine) stepItem(ctx context.Context, frame v2Frame, index int, comm
 					m.failure(frame, "OUTPUT_FIELD_COLLISION", "assembly", commit)
 					m.chunk(frame, "value", nil, commit)
 					commit.Chunks[len(commit.Chunks)-1].Status = "failed"
+					m.finishResult(frame, "failed", commit)
 					m.pop()
 					return nil
 				}
@@ -290,7 +303,31 @@ func (m *v2Machine) stepItem(ctx context.Context, frame v2Frame, index int, comm
 	}
 	if len(frame.Call) == 1 {
 		m.checkpoint.Progress.CompletedRootItems++
+		if call.Type == "collection" {
+			m.finishResult(frame, "", commit)
+		}
 	}
 	m.pop()
 	return nil
+}
+
+func (m *v2Machine) finishResult(frame v2Frame, status string, commit *execution.V2Commit) {
+	if !m.resultsEnabled || len(frame.Call) != 1 || frame.FirstChunk == 0 {
+		return
+	}
+	// A single is announced by its call frame, including failures before any item.
+	if frame.Kind == "item" && m.call(frame.Call).Type == "single" {
+		if status == "failed" {
+			m.checkpoint.SingleFailed = true
+		}
+		return
+	}
+	errors := m.checkpoint.Report.ErrorSummary.Total - frame.ErrorStart
+	if status == "" {
+		status = "completed"
+		if errors > 0 {
+			status = "completed_with_errors"
+		}
+	}
+	commit.Results = append(commit.Results, execution.V2Result{NodeID: frame.NodeID, Root: m.definition.Roots[frame.Call[0]].Name, Path: frame.Path, Index: frame.Index, Status: status, OccurredAt: time.Now().UTC(), ErrorSummary: execution.ErrorSummary{Total: errors, Returned: errors}, FirstChunk: frame.FirstChunk, LastChunk: m.sequence + int64(len(commit.Chunks))})
 }

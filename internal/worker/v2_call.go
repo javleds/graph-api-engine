@@ -19,6 +19,9 @@ func (m *v2Machine) stepCall(ctx context.Context, frame v2Frame, index int, comm
 	call := m.call(frame.Call)
 	switch frame.Phase {
 	case "":
+		if len(frame.Call) == 1 && call.Type == "single" {
+			frame.FirstChunk = m.sequence + int64(len(commit.Chunks)) + 1
+		}
 		if call.Pagination != nil {
 			frame.Page = call.Pagination.Start
 			if call.Pagination.PageSize != "" {
@@ -93,6 +96,18 @@ func (m *v2Machine) stepCall(ctx context.Context, frame v2Frame, index int, comm
 			default:
 				root.Status = execution.Completed
 				m.checkpoint.Progress.SuccessfulRootCalls++
+			}
+			if call.Type == "single" {
+				status := ""
+				if !frame.Available {
+					status = "failed"
+				}
+				// Assembly failures publish a failed null even when upstream data arrived.
+				if frame.Available && m.checkpoint.Report.ErrorSummary.Total > frame.ErrorStart && m.checkpoint.SingleFailed {
+					status = "failed"
+				}
+				m.finishResult(frame, status, commit)
+				m.checkpoint.SingleFailed = false
 			}
 			m.checkpoint.Root++
 		}

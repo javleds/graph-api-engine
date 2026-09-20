@@ -22,4 +22,5 @@ type v2Frame struct {
 	Stop       bool                  `json:"stop,omitempty"`
 	Available  bool                  `json:"available,omitempty"`
 	ErrorStart uint64                `json:"errorStart,omitempty"`
+	FirstChunk int64                 `json:"firstChunk,omitempty"`
 }

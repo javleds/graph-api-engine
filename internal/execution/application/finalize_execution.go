@@ -47,6 +47,8 @@ func (f *FinalizeExecution) Finish(ctx context.Context, completion domain.Execut
 			return domain.ErrVersionConflict
 		}
 		completion.LastSequence = nextSequence
+		completion.LastResultSequence = state.LastResultSequence
+		completion.ResultCount = state.ResultCount
 		if completion.ResultExpiresAt.IsZero() {
 			completion.ResultExpiresAt = completion.FinishedAt.Add(7 * 24 * time.Hour)
 		}

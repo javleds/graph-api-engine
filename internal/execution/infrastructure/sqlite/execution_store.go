@@ -252,7 +252,7 @@ func (s *ExecutionStore) Purge(ctx context.Context, now time.Time, limit int) er
 	if _, err := tx.ExecContext(ctx, `DELETE FROM execution_results WHERE execution_id IN (SELECT execution_id FROM execution_results WHERE expires_at<=? ORDER BY expires_at LIMIT ?)`, now.UnixMilli(), limit); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM executions WHERE id IN (SELECT id FROM executions WHERE metadata_expires_at<=? AND status IN ('completed','completed_with_errors','failed') AND NOT EXISTS (SELECT 1 FROM webhook_deliveries w WHERE w.execution_id=executions.id AND w.status IN ('pending','retrying','delivering')) ORDER BY metadata_expires_at LIMIT ?)`, now.UnixMilli(), limit); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM executions WHERE id IN (SELECT id FROM executions WHERE metadata_expires_at<=? AND status IN ('completed','completed_with_errors','failed') AND NOT EXISTS (SELECT 1 FROM webhook_deliveries w WHERE w.execution_id=executions.id AND w.status IN ('pending','retrying','delivering')) AND NOT EXISTS (SELECT 1 FROM v2_state v WHERE v.execution_id=executions.id AND executions.webhook_enabled=1 AND v.webhook_cursor<v.last_result_sequence) ORDER BY metadata_expires_at LIMIT ?)`, now.UnixMilli(), limit); err != nil {
 		return err
 	}
 	return tx.Commit()

@@ -8,6 +8,7 @@ import (
 	definition "github.com/javleds/api-engine/internal/definition/domain"
 	"github.com/javleds/api-engine/internal/execution/application/ports"
 	execution "github.com/javleds/api-engine/internal/execution/domain"
+	"strconv"
 	"time"
 )
 
@@ -80,6 +81,8 @@ func (r *V2Runner) Run(parent context.Context, id execution.ExecutionID) error {
 	ctx, cancel := context.WithDeadline(parent, state.DeadlineAt)
 	defer cancel()
 	machine := v2Machine{runner: r, engine: &configured, definition: compiled, id: id, owner: snapshot.OwnerID, generation: state.Generation, checkpoint: &checkpoint}
+	machine.resultsEnabled = state.ResultsEnabled
+	machine.sequence, _ = strconv.ParseInt(state.LastSequence, 10, 64)
 	for !task.Done && fatal == nil {
 		if parent.Err() != nil {
 			return parent.Err()
@@ -170,6 +173,11 @@ func (r *V2Runner) Run(parent context.Context, id execution.ExecutionID) error {
 		}
 		task = commit.Task
 		task.Revision++
+		machine.sequence += int64(len(commit.Chunks))
+		if !referencedAfter[machine.cachedKey] {
+			machine.cachedKey = ""
+			machine.cachedValue = nil
+		}
 	}
 	if parent.Err() != nil {
 		return parent.Err()

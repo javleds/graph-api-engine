@@ -12,18 +12,19 @@ import (
 )
 
 func (s *ExecutionStore) initializeV2(ctx context.Context, tx *sql.Tx, id d.ExecutionID, deadline time.Time) error {
-	_, err := tx.ExecContext(ctx, "INSERT INTO v2_state(execution_id,deadline_at) VALUES(?,?)", id, deadline.UnixMilli())
+	_, err := tx.ExecContext(ctx, "INSERT INTO v2_state(execution_id,deadline_at,results_enabled) VALUES(?,?,1)", id, deadline.UnixMilli())
 	return err
 }
 func (s *ExecutionStore) ReadV2State(ctx context.Context, id d.ExecutionID) (d.V2State, error) {
 	var v d.V2State
 	var deadline, seq int64
-	err := s.db.QueryRowContext(ctx, `SELECT checkpoint_version,deadline_at,generation,recoveries,last_sequence,published_bytes,stored_bytes,logical_requests,http_attempts,terminal,pending_tasks FROM v2_state WHERE execution_id=?`, id).Scan(&v.CheckpointVersion, &deadline, &v.Generation, &v.Recoveries, &seq, &v.PublishedBytes, &v.StoredBytes, &v.LogicalRequests, &v.HTTPAttempts, &v.Terminal, &v.PendingTasks)
+	err := s.db.QueryRowContext(ctx, `SELECT checkpoint_version,deadline_at,generation,recoveries,last_sequence,published_bytes,stored_bytes,logical_requests,http_attempts,terminal,pending_tasks,results_enabled,last_result_sequence FROM v2_state WHERE execution_id=?`, id).Scan(&v.CheckpointVersion, &deadline, &v.Generation, &v.Recoveries, &seq, &v.PublishedBytes, &v.StoredBytes, &v.LogicalRequests, &v.HTTPAttempts, &v.Terminal, &v.PendingTasks, &v.ResultsEnabled, &v.ResultCount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return v, d.ErrNotFound
 	}
 	v.DeadlineAt = time.UnixMilli(deadline).UTC()
 	v.LastSequence = strconv.FormatInt(seq, 10)
+	v.LastResultSequence = strconv.FormatInt(v.ResultCount, 10)
 	return v, err
 }
 func (s *ExecutionStore) NextV2Task(ctx context.Context, id d.ExecutionID) (d.V2Task, error) {
@@ -158,6 +159,9 @@ func (s *ExecutionStore) CommitV2Task(ctx context.Context, c d.V2Commit) error {
 			return err
 		}
 		published += n
+	}
+	if err := s.insertV2Results(ctx, tx, c, seq); err != nil {
+		return err
 	}
 	var tasks, nodes, stored int64
 	err = tx.QueryRowContext(ctx, `SELECT pending_tasks,node_count,stored_bytes FROM v2_state WHERE execution_id=?`, c.ID).Scan(&tasks, &nodes, &stored)

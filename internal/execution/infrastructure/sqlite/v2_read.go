@@ -170,11 +170,20 @@ func (s *ExecutionStore) PurgeV2(ctx context.Context, now time.Time, limit int) 
 	return tx.Commit()
 }
 func (s *ExecutionStore) purgeV2(ctx context.Context, tx *sql.Tx, now time.Time, limit int) error {
-	for _, table := range []string{"v2_chunks", "v2_nodes", "v2_inputs", "v2_tasks"} {
-		_, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE rowid IN (SELECT x.rowid FROM `+table+` x JOIN executions e ON e.id=x.execution_id WHERE e.result_expires_at<=? AND e.status IN ('completed','completed_with_errors','failed') LIMIT ?)`, now.UnixMilli(), limit)
+	for _, table := range []string{"v2_results", "v2_chunks", "v2_nodes", "v2_inputs", "v2_tasks"} {
+		pendingFilter := ""
+		// Keep only event metadata until the subscriber accounts for expired deliveries.
+		if table == "v2_results" {
+			pendingFilter = ` AND NOT EXISTS (SELECT 1 FROM v2_state v WHERE v.execution_id=e.id AND e.webhook_enabled=1 AND v.webhook_cursor<v.last_result_sequence)`
+		}
+		_, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE rowid IN (SELECT x.rowid FROM `+table+` x JOIN executions e ON e.id=x.execution_id WHERE e.result_expires_at<=? AND e.status IN ('completed','completed_with_errors','failed')`+pendingFilter+` LIMIT ?)`, now.UnixMilli(), limit)
 		if err != nil {
 			return err
 		}
+	}
+	_, err := tx.ExecContext(ctx, `DELETE FROM webhook_deliveries WHERE id IN (SELECT w.id FROM webhook_deliveries w JOIN executions e ON e.id=w.execution_id WHERE w.event_type='node.finished' AND w.status IN ('delivered','failed') AND e.result_expires_at<=? LIMIT ?)`, now.UnixMilli(), limit)
+	if err != nil {
+		return err
 	}
 	return nil
 }
