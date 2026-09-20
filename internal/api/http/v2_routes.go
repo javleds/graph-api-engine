@@ -43,4 +43,7 @@ func (s *Server) registerV2(mux *http.ServeMux, protection *http.CrossOriginProt
 	mux.HandleFunc("GET "+base+"/{id}/chunks", s.getV2Chunks)
 	mux.HandleFunc("GET "+base+"/{id}/tree", s.getV2Tree)
 	mux.HandleFunc("GET "+base+"/{id}/export", s.exportV2)
+	mux.HandleFunc("GET "+base+"/{id}/results", s.getV2Results)
+	mux.HandleFunc("GET "+base+"/{id}/results/{nodeId}", s.getV2Result)
+	mux.HandleFunc("GET "+base+"/{id}/webhooks", s.getV2Webhooks)
 }

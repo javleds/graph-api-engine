@@ -64,6 +64,9 @@ func (c *Config) Validate() error {
 	if c.Storage.MetadataRetention <= c.Storage.ResultRetention || c.Storage.MetadataRetention <= c.Webhooks.DeliveryMaxAge {
 		return fmt.Errorf("metadata retention must exceed result and delivery retention")
 	}
+	if c.Storage.ResultRetention < c.Webhooks.DeliveryMaxAge {
+		return fmt.Errorf("result retention must cover webhook delivery maximum age")
+	}
 	if c.Fetch.Retry.MaxBackoff < c.Fetch.Retry.BaseDelay || c.Webhooks.MaxBackoff < c.Webhooks.BaseDelay {
 		return fmt.Errorf("maximum retry backoff is below base delay")
 	}

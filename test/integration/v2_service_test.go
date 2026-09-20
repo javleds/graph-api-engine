@@ -189,14 +189,27 @@ func TestV2ServiceResumesCommittedParentAndDeliversTerminalWebhook(t *testing.T)
 		t.Fatalf("export %d %s", code, raw)
 	}
 	var delivery capturedWebhook
-	select {
-	case delivery = <-deliveries:
-	case <-time.After(5 * time.Second):
-		t.Fatal("missing final webhook")
-	}
 	var payload map[string]any
-	if err := json.Unmarshal(delivery.Body, &payload); err != nil {
-		t.Fatal(err)
+	var receivedNode, receivedTerminal bool
+	webhookDeadline := time.After(5 * time.Second)
+	for !receivedNode || !receivedTerminal {
+		select {
+		case incoming := <-deliveries:
+			var event map[string]any
+			if err := json.Unmarshal(incoming.Body, &event); err != nil {
+				t.Fatal(err)
+			}
+			if event["type"] == "node.finished" {
+				if event["status"] != "completed" || !bytes.Contains(incoming.Body, []byte(`9007199254740993`)) || event["eventId"] == "" {
+					t.Fatalf("wrong node webhook %s", incoming.Body)
+				}
+				receivedNode = true
+			} else {
+				delivery, payload, receivedTerminal = incoming, event, true
+			}
+		case <-webhookDeadline:
+			t.Fatalf("missing webhooks: node=%v terminal=%v", receivedNode, receivedTerminal)
+		}
 	}
 	links := payload["links"].(map[string]any)
 	if payload["id"] != string(accepted.ID) || payload["status"] != "completed" || payload["lastSequence"] != after.LastSequence || !strings.HasSuffix(links["chunks"].(string), path+"/chunks") {

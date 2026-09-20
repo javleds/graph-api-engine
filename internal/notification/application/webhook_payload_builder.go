@@ -133,7 +133,12 @@ func (b *WebhookPayloadBuilder) basePayload(eventID string, completion execution
 	if roots == nil {
 		roots = []execution.RootOutcome{}
 	}
-	return domain.WebhookPayload{EventID: eventID, Type: "execution." + string(completion.Status), ID: completion.ID, Status: completion.Status, OccurredAt: completion.FinishedAt, ErrorsIncluded: true, Errors: details, ErrorSummary: completion.Report.ErrorSummary, Roots: roots, Error: completion.Error, Links: links, LastSequence: completion.LastSequence, ResultExpiresAt: expiry}
+	payload := domain.WebhookPayload{EventID: eventID, Type: "execution." + string(completion.Status), ID: completion.ID, Status: completion.Status, OccurredAt: completion.FinishedAt, ErrorsIncluded: true, Errors: details, ErrorSummary: completion.Report.ErrorSummary, Roots: roots, Error: completion.Error, Links: links, LastSequence: completion.LastSequence, ResultExpiresAt: expiry}
+	if completion.APIVersion == 2 && completion.LastResultSequence != "" {
+		payload.ResultCount = &completion.ResultCount
+		payload.LastResultSequence = completion.LastResultSequence
+	}
+	return payload
 }
 func (b *WebhookPayloadBuilder) maximum() int {
 	if b.MaxPayloadBytes <= 0 {

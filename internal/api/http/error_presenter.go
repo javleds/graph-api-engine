@@ -45,6 +45,10 @@ func presentError(w http.ResponseWriter, err error, id string) {
 		writeError(w, 422, "INVALID_CURSOR", id)
 		return
 	}
+	if errors.Is(err, executiondomain.ErrV2ResultsUnavailable) {
+		writeError(w, 409, "RESULTS_UNAVAILABLE", id)
+		return
+	}
 	var storage executiondomain.StorageError
 	if errors.As(err, &storage) {
 		status := 503

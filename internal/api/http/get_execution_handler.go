@@ -3,6 +3,8 @@ package http
 import (
 	"github.com/javleds/api-engine/internal/api/http/dto"
 	"github.com/javleds/api-engine/internal/execution/domain"
+	notificationports "github.com/javleds/api-engine/internal/notification/application/ports"
+	notification "github.com/javleds/api-engine/internal/notification/domain"
 	"net/http"
 )
 
@@ -13,7 +15,7 @@ func (s *Server) executionLinks(id string) dto.ExecutionLinks {
 	}
 	base := prefix + "/" + id
 	if s.apiVersion() == 2 {
-		return dto.ExecutionLinks{Self: base, Chunks: base + "/chunks", Tree: base + "/tree", Export: base + "/export"}
+		return dto.ExecutionLinks{Self: base, Chunks: base + "/chunks", Tree: base + "/tree", Export: base + "/export", Results: base + "/results"}
 	}
 	return dto.ExecutionLinks{Self: base, Result: base + "/result"}
 }
@@ -61,5 +63,16 @@ func (s *Server) getExecution(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	writeJSON(w, 200, dto.ExecutionResponse{V2: state, ID: execution.ID, Status: execution.Status, CreatedAt: execution.CreatedAt, StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt, Progress: execution.Progress, Webhook: webhook, Error: execution.Error, Errors: report.Errors, ErrorSummary: report.ErrorSummary, Roots: report.Roots, Links: s.executionLinks(string(execution.ID))})
+	var nodeWebhooks *notification.NodeWebhookSummary
+	if state != nil && state.ResultsEnabled && execution.WebhookEnabled {
+		if reader, ok := s.WebhookStatus.(notificationports.NodeWebhookStatusReader); ok {
+			summary, err := reader.NodeSummary(r.Context(), principal.OwnerID, execution.ID)
+			if err != nil {
+				presentError(w, err, "")
+				return
+			}
+			nodeWebhooks = &summary
+		}
+	}
+	writeJSON(w, 200, dto.ExecutionResponse{NodeWebhookSummary: nodeWebhooks, V2: state, ID: execution.ID, Status: execution.Status, CreatedAt: execution.CreatedAt, StartedAt: execution.StartedAt, FinishedAt: execution.FinishedAt, Progress: execution.Progress, Webhook: webhook, Error: execution.Error, Errors: report.Errors, ErrorSummary: report.ErrorSummary, Roots: report.Roots, Links: s.executionLinks(string(execution.ID))})
 }

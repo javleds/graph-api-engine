@@ -147,6 +147,35 @@ func TestRunStopsAfterJoiningDeliveries(t *testing.T) {
 		t.Fatal(outbox.saved)
 	}
 }
+
+func TestRunRefillsFreeSlotWhileAnotherDeliveryIsSlow(t *testing.T) {
+	now := time.Now()
+	outbox := &fakeOutbox{pending: []notification.WebhookDelivery{{ID: "slow", DeadlineAt: now.Add(time.Hour)}, {ID: "fast", DeadlineAt: now.Add(time.Hour)}, {ID: "next", DeadlineAt: now.Add(time.Hour)}}}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	next := make(chan struct{})
+	sender := fakeSender(func(ctx context.Context, d notification.WebhookDelivery) (notification.WebhookAttempt, error) {
+		if d.ID == "slow" {
+			select {
+			case <-next:
+				cancel()
+			case <-ctx.Done():
+				t.Error("free slot waited for slow delivery")
+			}
+		}
+		if d.ID == "next" {
+			close(next)
+		}
+		return notification.WebhookAttempt{StatusCode: 204}, nil
+	})
+	dispatcher := WebhookDispatcher{Outbox: outbox, Sender: sender, Options: DispatcherOptions{MaxConcurrent: 2, PollInterval: time.Hour}}
+	if err := dispatcher.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(outbox.saved) != 3 {
+		t.Fatal("did not drain all deliveries")
+	}
+}
 func TestRunRejectsLeaseShorterThanAttemptPersistenceWindow(t *testing.T) {
 	dispatcher := WebhookDispatcher{Options: DispatcherOptions{ClaimLease: time.Second, AttemptTimeout: time.Second}}
 	if err := dispatcher.Run(context.Background()); err == nil {

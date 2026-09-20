@@ -9,12 +9,15 @@ import (
 	"github.com/javleds/api-engine/internal/notification/domain"
 	securityports "github.com/javleds/api-engine/internal/security/application/ports"
 	securitydomain "github.com/javleds/api-engine/internal/security/domain"
+	"sync"
 	"time"
 )
 
 type SQLiteWebhookOutbox struct {
-	db        *sql.DB
-	protector securityports.SecretProtector
+	db            *sql.DB
+	protector     securityports.SecretProtector
+	claimMu       sync.Mutex
+	lastExecution string
 }
 
 func NewSQLiteWebhookOutbox(db *sql.DB, protector securityports.SecretProtector) *SQLiteWebhookOutbox {
@@ -22,6 +25,8 @@ func NewSQLiteWebhookOutbox(db *sql.DB, protector securityports.SecretProtector)
 }
 
 func (o *SQLiteWebhookOutbox) Claim(ctx context.Context, instance string, now time.Time, lease time.Duration) (*domain.WebhookDelivery, error) {
+	o.claimMu.Lock()
+	defer o.claimMu.Unlock()
 	if lease <= 0 {
 		return nil, errors.New("positive webhook lease required")
 	}
@@ -33,7 +38,7 @@ func (o *SQLiteWebhookOutbox) Claim(ctx context.Context, instance string, now ti
 	if _, err := tx.ExecContext(ctx, `UPDATE webhook_deliveries SET last_error_json='{"code":"DELIVERY_DEADLINE_EXCEEDED","message":"Se agotó el plazo de entrega."}',status='failed',lease_owner=NULL,lease_expires_at=NULL,version=version+1 WHERE status IN ('pending','retrying') AND deadline_at<=?`, now.UnixMilli()); err != nil {
 		return nil, err
 	}
-	d, err := loadDue(ctx, tx, now)
+	d, err := loadDue(ctx, tx, now, o.lastExecution)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, tx.Commit()
 	}
@@ -56,6 +61,7 @@ func (o *SQLiteWebhookOutbox) Claim(ctx context.Context, instance string, now ti
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+	o.lastExecution = string(d.ExecutionID)
 	d.Status = "delivering"
 	d.Version++
 	d.Attempts++
@@ -111,7 +117,7 @@ func (o *SQLiteWebhookOutbox) Recover(ctx context.Context, instance string, now 
 
 func (o *SQLiteWebhookOutbox) Status(ctx context.Context, owner string, id executiondomain.ExecutionID) (*domain.WebhookStatus, error) {
 	var status domain.WebhookStatus
-	err := o.db.QueryRowContext(ctx, `SELECT status,attempts FROM webhook_deliveries WHERE owner_id=? AND execution_id=? ORDER BY created_at DESC LIMIT 1`, owner, id).Scan(&status.Status, &status.Attempts)
+	err := o.db.QueryRowContext(ctx, `SELECT status,attempts FROM webhook_deliveries WHERE owner_id=? AND execution_id=? AND event_type<>'node.finished' ORDER BY created_at DESC LIMIT 1`, owner, id).Scan(&status.Status, &status.Attempts)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -130,10 +136,10 @@ func (o *SQLiteWebhookOutbox) open(ctx context.Context, table, owner, id string,
 	return o.protector.Open(ctx, string(purpose), blob)
 }
 
-func loadDue(ctx context.Context, tx *sql.Tx, now time.Time) (domain.WebhookDelivery, error) {
+func loadDue(ctx context.Context, tx *sql.Tx, now time.Time, afterExecution string) (domain.WebhookDelivery, error) {
 	var d domain.WebhookDelivery
 	var next, deadline int64
-	err := tx.QueryRowContext(ctx, `SELECT id,event_id,execution_id,owner_id,event_type,target_blob,payload_blob,status,attempts,version,next_attempt_at,deadline_at FROM webhook_deliveries WHERE status IN ('pending','retrying') AND next_attempt_at<=? AND deadline_at>? ORDER BY next_attempt_at,id LIMIT 1`, now.UnixMilli(), now.UnixMilli()).Scan(&d.ID, &d.EventID, &d.ExecutionID, &d.OwnerID, &d.EventType, &d.Target, &d.Payload, &d.Status, &d.Attempts, &d.Version, &next, &deadline)
+	err := tx.QueryRowContext(ctx, `SELECT id,event_id,execution_id,owner_id,event_type,target_blob,payload_blob,status,attempts,version,next_attempt_at,deadline_at FROM webhook_deliveries WHERE status IN ('pending','retrying') AND next_attempt_at<=? AND deadline_at>? ORDER BY CASE WHEN execution_id>? THEN 0 ELSE 1 END,execution_id,next_attempt_at,id LIMIT 1`, now.UnixMilli(), now.UnixMilli(), afterExecution).Scan(&d.ID, &d.EventID, &d.ExecutionID, &d.OwnerID, &d.EventType, &d.Target, &d.Payload, &d.Status, &d.Attempts, &d.Version, &next, &deadline)
 	d.NextAttemptAt = time.UnixMilli(next).UTC()
 	d.DeadlineAt = time.UnixMilli(deadline).UTC()
 	return d, err

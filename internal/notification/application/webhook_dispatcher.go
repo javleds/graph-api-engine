@@ -30,23 +30,42 @@ func (d *WebhookDispatcher) Run(ctx context.Context) error {
 	if d.Options.ClaimLease <= d.Options.AttemptTimeout+d.Options.PersistenceTimeout {
 		return errors.New("webhook claim lease must exceed attempt and persistence timeouts")
 	}
-	for {
-		if err := ctx.Err(); err != nil {
-			return nil
+	completed := make(chan error, d.Options.MaxConcurrent)
+	active := 0
+	report := func(err error) {
+		if err != nil && d.OnError != nil {
+			d.OnError(err)
 		}
-		if err := d.DispatchOnce(ctx); err != nil {
-			if d.OnError != nil {
-				d.OnError(err)
+	}
+	for ctx.Err() == nil {
+		report(d.Outbox.Recover(ctx, d.Options.InstanceID, d.Clock.Now()))
+		for active < d.Options.MaxConcurrent && ctx.Err() == nil {
+			delivery, err := d.Outbox.Claim(ctx, d.Options.InstanceID, d.Clock.Now(), d.Options.ClaimLease)
+			if err != nil {
+				report(err)
+				break
 			}
+			if delivery == nil {
+				break
+			}
+			active++
+			go func(delivery domain.WebhookDelivery) { completed <- d.deliver(ctx, delivery, d.Options, d.Clock) }(*delivery)
 		}
 		timer := d.Clock.NewTimer(d.Options.PollInterval)
 		select {
 		case <-ctx.Done():
-			timer.Stop()
-			return nil
+		case err := <-completed:
+			active--
+			report(err)
 		case <-timer.C():
 		}
+		timer.Stop()
 	}
+	for active > 0 {
+		report(<-completed)
+		active--
+	}
+	return nil
 }
 func (d *WebhookDispatcher) DispatchOnce(ctx context.Context) error {
 	options := d.Options.defaults()

@@ -92,6 +92,12 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 		return nil, err
 	}
 	outbox := notificationsql.NewSQLiteWebhookOutbox(a.EngineDB, protector)
+	a.NodeNotifications = &notificationapp.NodeWebhookSubscriber{
+		Outbox: outbox, Store: a.Store, Results: a.Store, Builder: builder,
+		MaxPending: cfg.Webhooks.MaxPendingDeliveries, MaxStoredBytes: cfg.Executions.V2.MaxStoredBytes,
+		PollInterval: cfg.Webhooks.PollInterval.Value(), Clock: clock.RealClock{},
+		OnError: func(error) { a.Logger.Error("node webhook projection failed") },
+	}
 	if err = outbox.Recover(ctx, instance, time.Now()); err != nil {
 		return nil, err
 	}

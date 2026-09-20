@@ -39,6 +39,21 @@ func TestExampleDefaults(t *testing.T) {
 	}
 }
 
+func TestResultRetentionCoversNodeDeliveryWindow(t *testing.T) {
+	config, err := Parse(example(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.Storage.ResultRetention = config.Webhooks.DeliveryMaxAge - 1
+	if err := config.Validate(); err == nil {
+		t.Fatal("result retention shorter than delivery window accepted")
+	}
+	config.Storage.ResultRetention = config.Webhooks.DeliveryMaxAge
+	if err := config.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDefaultsRequireDeploymentSettings(t *testing.T) {
 	if _, err := Parse([]byte("{}")); err == nil {
 		t.Fatal("missing deployment settings accepted")

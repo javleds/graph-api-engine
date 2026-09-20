@@ -28,6 +28,7 @@ type Application struct {
 	HTTP                       *http.Server
 	Dispatcher                 *inprocess.LocalExecutionDispatcher
 	Notifications              *notificationapp.WebhookDispatcher
+	NodeNotifications          *notificationapp.NodeWebhookSubscriber
 	EngineDB                   *sql.DB
 	CacheDB                    *sql.DB
 	Lock                       *platformsql.InstanceLock

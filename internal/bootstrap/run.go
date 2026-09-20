@@ -18,7 +18,8 @@ func (a *Application) Run(ctx context.Context) error {
 func (a *Application) Serve(ctx context.Context, listener net.Listener) error {
 	loops, cancelLoops := context.WithCancel(context.Background())
 	var background sync.WaitGroup
-	background.Add(3)
+	background.Add(4)
+	go func() { defer background.Done(); a.NodeNotifications.Run(loops) }()
 	go func() { defer background.Done(); a.resumeV2(loops) }()
 	go func() { defer background.Done(); a.maintenance(loops) }()
 	go func() {
