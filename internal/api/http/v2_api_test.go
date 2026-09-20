@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-var v2Request = []byte(`{"definition":{"version":1,"api":{"baseUrl":"https://example.com","limits":{"requests":100,"per":"1m"}},"calls":{"name":"items","type":"collection","request":{"method":"GET","path":"/items"}}}}`)
+var v2Request = []byte(`{"definition":{"version":1,"api":{"baseUrl":"https://example.com","limits":{"requests":100,"per":"1m"}},"calls":[{"name":"items","type":"collection","request":{"method":"GET","path":"/items"}}]}}`)
 
 func TestV2VersionIsolationAndValidation(t *testing.T) {
 	h, _, _ := newTestAPI(t)

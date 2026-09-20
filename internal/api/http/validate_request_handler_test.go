@@ -10,7 +10,7 @@ import (
 func TestPlaygroundValidationDoesNotCreateExecutions(t *testing.T) {
 	h, _, dispatcher := newTestAPI(t)
 	dispatcher.busy = true
-	valid := `{"definition":{"version":1,"api":{"baseUrl":"https://example.com","limits":{"requests":100,"per":"1m"}},"calls":{"name":"items","type":"collection","request":{"method":"GET","path":"/items"}}}}`
+	valid := `{"definition":{"version":1,"api":{"baseUrl":"https://example.com","limits":{"requests":100,"per":"1m"}},"calls":[{"name":"items","type":"collection","request":{"method":"GET","path":"/items"}}]}}`
 	for _, body := range []string{valid, strings.Replace(valid, `"path":"/items"`, `"path":"/items","query":{"id":9007199254740993}`, 1)} {
 		got := request(t, h, "POST", "/playground/api/validate", []byte(body), "", "")
 		if got.Code != 200 || got.Body.String() != `{"valid":true}` {

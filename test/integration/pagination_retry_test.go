@@ -33,7 +33,7 @@ func TestPaginationRetryDoesNotDuplicateAcceptedPages(t *testing.T) {
 	var input map[string]any
 	json.Unmarshal(definitionBody(upstream.URL, nil), &input)
 	definition := input["definition"].(map[string]any)
-	root := definition["calls"].(map[string]any)
+	root := definition["calls"].([]any)[0].(map[string]any)
 	delete(root, "children")
 	root["pagination"] = map[string]any{"page": "page"}
 	body, _ := json.Marshal(input)

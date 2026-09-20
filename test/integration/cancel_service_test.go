@@ -50,7 +50,7 @@ func TestCancelStopsUpstreamAndPersistsAcrossRestart(t *testing.T) {
 			json.Unmarshal(definitionBody(upstream.URL, nil), &input)
 			definition := input["definition"].(map[string]any)
 			definition["api"].(map[string]any)["cache"] = false
-			child := definition["calls"].(map[string]any)["children"].([]any)[0].(map[string]any)
+			child := definition["calls"].([]any)[0].(map[string]any)["children"].([]any)[0].(map[string]any)
 			child["children"] = []any{map[string]any{"name": "never", "type": "single", "request": map[string]any{"method": "GET", "path": "/never"}}}
 			body, _ := json.Marshal(input)
 			token := "owner-one-a-long-random-looking-integration-token"

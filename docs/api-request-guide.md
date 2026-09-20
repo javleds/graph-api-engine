@@ -37,12 +37,14 @@ Guardar este documento como `request.json`:
       "baseUrl": "https://example.com/api/v1",
       "limits": { "requests": 100, "per": "1m" }
     },
-    "calls": {
-      "name": "products",
-      "type": "collection",
-      "select": "data.items",
-      "request": { "method": "GET", "path": "/products" }
-    }
+    "calls": [
+      {
+        "name": "products",
+        "type": "collection",
+        "select": "data.items",
+        "request": { "method": "GET", "path": "/products" }
+      }
+    ]
   }
 }
 ```
@@ -74,7 +76,7 @@ La validación offline no hace requests ni garantiza que el proveedor devuelva l
 | `webhook` | No | Configuración de notificación; omitir o usar `null` para desactivarla. |
 | `definition.version` | Sí | Número `1`. |
 | `definition.api` | Sí | Un proveedor común a todos los nodos. |
-| `definition.calls` | Sí | Un nodo o un array no vacío de raíces con nombres únicos. |
+| `definition.calls` | Sí | Array no vacío de raíces con nombres únicos. Incluso una sola raíz debe ir dentro de `[]`. |
 | `api.baseUrl` | Sí | URL HTTPS absoluta; permite prefijo de path, sin query, fragmento ni credenciales en URL. |
 | `api.limits` | Sí | `requests` y `per`; opcionalmente `concurrency`. |
 | `api.auth` | No | Por defecto `none`; formatos en §8 de esta guía. |

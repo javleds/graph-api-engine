@@ -20,10 +20,7 @@ func Compile(input dto.CreateExecutionRequest, limits application.ValidationLimi
 	}
 	result := domain.CompiledDefinition{Version: input.Definition.Version, API: domain.APIConnection{BaseURL: api.BaseURL, Auth: mapAuth(api.Auth), Headers: mapHeaders(api.Headers), Limits: rate, Cache: cache}, Roots: []domain.CompiledCall{}}
 	for i, call := range input.Definition.Calls.Calls {
-		pointer := "/definition/calls"
-		if input.Definition.Calls.WasArray {
-			pointer += fmt.Sprintf("/%d", i)
-		}
+		pointer := fmt.Sprintf("/definition/calls/%d", i)
 		compiled, err := mapCall(call, pointer, i, cache)
 		if err != nil {
 			return nil, err

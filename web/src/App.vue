@@ -132,7 +132,7 @@ const requestSections: Array<{ title: string; fields: RequestField[] }> = [
   { title: 'definition', fields: [
     { path: 'definition.version', required: 'Sí', description: 'Versión del lenguaje de grafos.', allowed: '1' },
     { path: 'definition.api', required: 'Sí', description: 'Proveedor, autenticación, cuota y caché comunes.', allowed: 'Objeto' },
-    { path: 'definition.calls', required: 'Sí', description: 'Una raíz o un arreglo no vacío de raíces independientes.', allowed: 'Nodo o array de nodos' },
+    { path: 'definition.calls', required: 'Sí', description: 'Raíces independientes del grafo; incluso una sola debe ir en un arreglo.', allowed: 'Array no vacío de nodos' },
   ] },
   { title: 'definition.api', fields: [
     { path: 'api.baseUrl', required: 'Sí', description: 'URL base HTTPS del proveedor, con prefijo de path opcional.', allowed: 'URI absoluta' },
@@ -182,7 +182,7 @@ const requestSchemaExample = JSON.stringify({
   definition: {
     version: 1,
     api: { baseUrl: 'https://example.com/api/v1', limits: { requests: 100, per: '1m' } },
-    calls: { name: 'products', type: 'collection', select: 'data.items', request: { method: 'GET', path: '/products' } },
+    calls: [{ name: 'products', type: 'collection', select: 'data.items', request: { method: 'GET', path: '/products' } }],
   },
 }, null, 2);
 function valueAt(source: unknown, field: string): unknown {

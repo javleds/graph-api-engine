@@ -10,7 +10,7 @@ import (
 	"github.com/javleds/api-engine/internal/definition/infrastructure/schema"
 )
 
-const input = `{"definition":{"version":1,"api":{"baseUrl":"https://example.com/api/v1","limits":{"requests":100,"per":"1m"},"cache":{"ttl":"1h"}},"calls":{"name":"items","type":"collection","request":{"method":"GET","path":"/items","query":{"size":10}},"pagination":{"page":"page","pageSize":"size"},"children":[{"name":"details","type":"single","request":{"method":"GET","path":"/items/{parent.id}"},"cache":false}]}}}`
+const input = `{"definition":{"version":1,"api":{"baseUrl":"https://example.com/api/v1","limits":{"requests":100,"per":"1m"},"cache":{"ttl":"1h"}},"calls":[{"name":"items","type":"collection","request":{"method":"GET","path":"/items","query":{"size":10}},"pagination":{"page":"page","pageSize":"size"},"children":[{"name":"details","type":"single","request":{"method":"GET","path":"/items/{parent.id}"},"cache":false}]}]}}`
 
 func TestNormalization(t *testing.T) {
 	parsed, err := schema.Parse([]byte(input), 64)
@@ -22,7 +22,7 @@ func TestNormalization(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := compiled.Roots[0]
-	if root.Pointer != "/definition/calls" || root.RootIndex != 0 || root.Cache.TTL != time.Hour || root.Children[0].Cache.Enabled || root.Pagination.Start != 1 || !root.Pagination.Pages.All {
+	if root.Pointer != "/definition/calls/0" || root.RootIndex != 0 || root.Cache.TTL != time.Hour || root.Children[0].Cache.Enabled || root.Pagination.Start != 1 || !root.Pagination.Pages.All {
 		t.Fatalf("wrong defaults: %#v", root)
 	}
 	if compiled.API.Auth.Type != "none" || compiled.API.Limits.Concurrency != 20 {
@@ -63,7 +63,6 @@ func TestArrayRootPointerAndLimits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parsed.Definition.Calls.WasArray = true
 	compiled, err := Compile(parsed, application.DefaultValidationLimits())
 	if err != nil {
 		t.Fatal(err)

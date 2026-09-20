@@ -19,7 +19,8 @@
         "ttl": "1h"
       }
     },
-    "calls": {
+    "calls": [
+      {
       "name": "pokemons",
       "type": "collection",
       "select": "data",
@@ -79,7 +80,8 @@
           ]
         }
       ]
-    }
+      }
+    ]
   },
   "webhook": {
     "url": "https://consumer.example.com/webhooks/api-engine",

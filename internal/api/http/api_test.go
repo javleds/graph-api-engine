@@ -107,7 +107,7 @@ func TestStrictJSONAndAuthentication(t *testing.T) {
 }
 func TestPartialResultEnvelope(t *testing.T) {
 	h, store, _ := newTestAPI(t)
-	body := []byte(`{"definition":{"version":1,"api":{"baseUrl":"https://example.com","limits":{"requests":100,"per":"1m"}},"calls":{"name":"items","type":"collection","request":{"method":"GET","path":"/items"}}}}`)
+	body := []byte(`{"definition":{"version":1,"api":{"baseUrl":"https://example.com","limits":{"requests":100,"per":"1m"}},"calls":[{"name":"items","type":"collection","request":{"method":"GET","path":"/items"}}]}}`)
 	accepted := request(t, h, "POST", "/v1/executions", body, "", "owner")
 	if accepted.Code != 202 {
 		t.Fatalf("%d %s", accepted.Code, accepted.Body)

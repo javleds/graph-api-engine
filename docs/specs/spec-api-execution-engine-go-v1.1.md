@@ -137,7 +137,7 @@ Significa tener contratos internos y dependencias orientadas correctamente. **No
 | Nodo fallido | `single -> null`; `collection -> []` cuando no hay datos válidos previos. Se conserva el nombre del nodo. |
 | Aislamiento | Un fallo local no cancela hermanos, otras instancias ni otras raíces; sus descendientes no se materializan. |
 | Estado con datos y errores | `completed_with_errors`, sin umbral por porcentaje. |
-| Raíces | `calls` admite un objeto o un array no vacío de raíces independientes de la misma API. |
+| Raíces | `calls` es un array no vacío de raíces independientes de la misma API. |
 | Fracaso de obtención | `failed` si ninguna raíz pudo aceptar su respuesta inicial/página; una colección vacía válida sí cuenta como éxito. |
 | Excepción técnica | Pérdida de estado, corrupción o imposibilidad de construir/persistir un resultado confiable pueden causar `failed` aunque hubo requests exitosas. |
 | Fallo del webhook | No cambia una ejecución ya completada a `failed`. |
@@ -185,7 +185,8 @@ La autenticación de esta request identifica al consumidor del engine. Es distin
         "ttl": "1h"
       }
     },
-    "calls": {
+    "calls": [
+      {
       "name": "pokemons",
       "type": "collection",
       "select": "data",
@@ -245,7 +246,8 @@ La autenticación de esta request identifica al consumidor del engine. Es distin
           ]
         }
       ]
-    }
+      }
+    ]
   },
   "webhook": {
     "url": "https://consumer.example.com/webhooks/api-engine",
@@ -264,7 +266,7 @@ La autenticación de esta request identifica al consumidor del engine. Es distin
 
 El ejemplo deshabilita la caché para descubrir la lista raíz y sus relaciones, pero reutiliza los detalles. No prescribe estos TTL para todas las APIs: el consumidor debe decidir la frescura aceptable.
 
-`webhook` es opcional y acepta `null`. `calls` admite una raíz o un array no vacío de raíces independientes. Una API por ejecución. No existe un registro previo obligatorio de proveedores.
+`webhook` es opcional y acepta `null`. `calls` siempre es un array no vacío de raíces independientes, incluso cuando existe una sola raíz. Una API por ejecución. No existe un registro previo obligatorio de proveedores.
 
 ### 3.2. Compatibilidad y validación estructural
 
@@ -274,9 +276,9 @@ Todos los objetos de configuración son estrictos: propiedades desconocidas se r
 
 El HTTP handler transforma DTOs de transporte a objetos de aplicación. Los tipos de dominio no deben implementar detalles del body HTTP público ni depender de una librería de JSON Schema.
 
-### 3.3. Una raíz o varias raíces
+### 3.3. Una o varias raíces
 
-`definition.calls` acepta el objeto ya definido o un array no vacío de esos objetos. El objeto se normaliza internamente a una lista de un elemento; no se obliga a cambiar los clientes del ejemplo original.
+`definition.calls` siempre acepta un array no vacío de objetos. Una ejecución con una sola raíz también debe contener un array de un elemento. Esto mantiene una forma de contrato uniforme y pointers de validación estables.
 
 Ejemplo completo de varias raíces:
 
@@ -308,7 +310,7 @@ Ejemplo completo de varias raíces:
 
 Ambas raíces utilizan la misma conexión, credenciales y cuotas compartidas de `api`. Sus nombres son únicos entre sí. Una raíz no puede leer los resultados de otra mediante plantillas; no son ancestros. Diferentes APIs por raíz siguen fuera de v1.
 
-El compilador asigna a cada raíz un índice estable y preserva el JSON Pointer de origen. Para el objeto original es `/definition/calls`; para un array son `/definition/calls/0`, `/definition/calls/1`, etc. No perder este dato al normalizar: los errores deben apuntar al input que realmente envió el consumidor.
+El compilador asigna a cada raíz un índice estable y preserva su JSON Pointer de origen: `/definition/calls/0`, `/definition/calls/1`, etc. No perder este dato al decodificar: los errores deben apuntar al input que realmente envió el consumidor.
 
 Se valida `executions.maxRootCalls` antes de aceptar el job. Las raíces se procesan con el mismo presupuesto de ramas, HTTP y memoria de la ejecución, no con un pool ilimitado por raíz.
 
@@ -3521,7 +3523,7 @@ Casos adicionales: cachear un nodo no cachea sus hijos; TTL corto no reutiliza u
 | E30 | Falla solo un request lógico de credenciales en una rama. | Cero retries de ese request; no breaker global implícito. |
 | E31 | Fallo de caché seguido de HTTP correcto. | Solo telemetría operativa, sin `errors` de datos. |
 | E32 | Root arrays con nombres duplicados o referencias cruzadas. | `422` antes de crear ejecución. |
-| E33 | Input legacy `calls` objeto y nuevo array de una raíz. | Mismo árbol y semántica; pointers conservan la forma original. |
+| E33 | `calls` con una raíz dentro de un array. | Un solo árbol conserva el pointer `/definition/calls/0`. |
 | E34 | Resultado parcial via webhook `payload: result`. | Evento `execution.completed_with_errors`, datos y errores coherentes. |
 | E35 | Errores hacen exceder payload de webhook. | Omisión explícita y link al informe, sin invalidar job. |
 | E36 | Resultado posee una raíz llamada `errors` o `status`. | Sin colisión: vive dentro de `result`. |
@@ -4185,19 +4187,12 @@ El schema valida estructura y tipos; los límites de profundidad del árbol, ref
           "$ref": "#/$defs/api"
         },
         "calls": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/call"
-            },
-            {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 128,
-              "items": {
-                "$ref": "#/$defs/call"
-              }
-            }
-          ]
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/call"
+          }
         }
       },
       "required": [
@@ -4250,7 +4245,7 @@ El schema valida estructura y tipos; los límites de profundidad del árbol, ref
 
 Validar límites de profundidad/nodos/children y raíces; nombres únicos entre hermanos y entre raíces; resolución nominal de ancestros; plantilla completa y sin tokens huérfanos; `page` ausente en query; `pageSize` existente, estático y entero positivo; nombres de página distintos; duración sin overflow y bajo techos del servidor; referencias de raíz inexistentes; headers reservados o duplicados por casing; métodos y URLs seguros; bases sin query/fragment/userinfo; destinos autorizados; configuraciones de cuota coherentes.
 
-Normalizar `calls` objeto/array a una lista interna tipada conservando pointers originales y el orden de raíces. Rechazar arrays vacíos y referencias entre raíces. Mantener `pages: all` o el entero en un DTO/valor dedicado, no en un `any` usado por todo el runtime. Después de normalizar, los valores internos deben ser tipados: por ejemplo `PageSelection{All: true}` o un contador máximo validado. Este tipo tiene su propio archivo.
+Decodificar `calls` como una lista interna tipada conservando su orden y los pointers de cada índice. Rechazar valores que no sean arrays, arrays vacíos y referencias entre raíces. Mantener `pages: all` o el entero en un DTO/valor dedicado, no en un `any` usado por todo el runtime. Después de decodificar, los valores internos deben ser tipados: por ejemplo `PageSelection{All: true}` o un contador máximo validado. Este tipo tiene su propio archivo.
 
 ---
 
@@ -4260,7 +4255,7 @@ Normalizar `calls` objeto/array a una lista interna tipada conservando pointers 
 
 | Propiedad | Default al normalizar |
 |---|---|
-| `definition.calls` objeto | Lista interna de una raíz, sin cambiar su pointer de origen. |
+| `definition.calls` | Array no vacío; cada raíz conserva el pointer de su índice. |
 | `failure policy` | Tolerancia parcial fija; no existe un campo de input con ese nombre. |
 | Placeholder de fallo `single` | `null`. |
 | Placeholder de fallo `collection` | `[]` si no hay páginas válidas previas. |
@@ -4734,7 +4729,7 @@ JSON Schema no sustituye estas comprobaciones del finalizador y sus tests:
 - `errorSummary.returned == len(errors)`; `total >= returned`; `truncated == (returned < total)`.
 - `completed` exige cero errores definitivos y ninguna raíz incompleta. `completed_with_errors` exige al menos una raíz disponible y algún diagnóstico final, aunque los detalles se hayan limitado.
 - Los nombres de `roots` son únicos y coinciden con las keys de `result` para todas las raíces declaradas, incluidas las fallidas representadas por placeholder cuando hay otra raíz válida.
-- Un error `scope: node` apunta a la instancia correcta de su definición original. `definitionPath` no se reescribe al normalizar `calls` objeto a array.
+- Un error `scope: node` apunta a la instancia correcta de su definición original; `definitionPath` incluye el índice de su raíz.
 - Un `single` fallido sin datos se serializa `null`; una colección fallida sin páginas válidas `[]`. Una colección parcial conserva las páginas aceptadas y su orden.
 - Los índices de datos y de `nodePath` no se recalculan filtrando objetos fallidos.
 - Un diagnóstico por retry agotado informa el total de intentos observados de su fetch, no un contador sumado del job.

@@ -480,19 +480,12 @@
           "$ref": "#/$defs/api"
         },
         "calls": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/call"
-            },
-            {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 128,
-              "items": {
-                "$ref": "#/$defs/call"
-              }
-            }
-          ]
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/call"
+          }
         }
       },
       "required": [

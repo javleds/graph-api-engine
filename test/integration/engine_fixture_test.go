@@ -157,6 +157,6 @@ func (f *engineFixture) terminal(t *testing.T, id string) map[string]any {
 	return nil
 }
 func definitionBody(upstream string, webhook any) []byte {
-	data, _ := json.Marshal(map[string]any{"definition": map[string]any{"version": 1, "api": map[string]any{"baseUrl": upstream, "limits": map[string]any{"requests": 1000, "per": "1ms"}, "cache": map[string]any{"ttl": "1h"}}, "calls": map[string]any{"name": "items", "type": "collection", "request": map[string]any{"method": "GET", "path": "/items"}, "children": []any{map[string]any{"name": "detail", "type": "single", "request": map[string]any{"method": "GET", "path": "/detail/{parent.id}"}}}}}, "webhook": webhook})
+	data, _ := json.Marshal(map[string]any{"definition": map[string]any{"version": 1, "api": map[string]any{"baseUrl": upstream, "limits": map[string]any{"requests": 1000, "per": "1ms"}, "cache": map[string]any{"ttl": "1h"}}, "calls": []any{map[string]any{"name": "items", "type": "collection", "request": map[string]any{"method": "GET", "path": "/items"}, "children": []any{map[string]any{"name": "detail", "type": "single", "request": map[string]any{"method": "GET", "path": "/detail/{parent.id}"}}}}}}, "webhook": webhook})
 	return data
 }
