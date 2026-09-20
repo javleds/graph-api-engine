@@ -3,13 +3,17 @@ import { computed, ref } from 'vue';
 import MarkdownIt from 'markdown-it';
 import v1Guide from '../../docs/result-delivery-v1.md?raw';
 import v2Guide from '../../docs/result-delivery-v2.md?raw';
+import v1GuideEnglish from '../../docs/result-delivery-v1.en.md?raw';
+import v2GuideEnglish from '../../docs/result-delivery-v2.en.md?raw';
 import { messagesFor, uiLanguage } from './i18n';
 
 const version = ref<'v1' | 'v2'>('v1');
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
 const language = uiLanguage();
 const ui = messagesFor(language);
-const content = computed(() => markdown.render(version.value === 'v1' ? v1Guide : v2Guide));
+const content = computed(() => markdown.render(language === 'en'
+  ? (version.value === 'v1' ? v1GuideEnglish : v2GuideEnglish)
+  : (version.value === 'v1' ? v1Guide : v2Guide)));
 </script>
 
 <template>
@@ -23,7 +27,7 @@ const content = computed(() => markdown.render(version.value === 'v1' ? v1Guide 
       <label :class="{ selected: version === 'v1' }"><input v-model="version" type="radio" name="result-version" value="v1" aria-controls="result-version-content">V1 · {{ language === 'en' ? 'Final result' : 'Resultado final' }}</label>
       <label :class="{ selected: version === 'v2' }"><input v-model="version" type="radio" name="result-version" value="v2" aria-controls="result-version-content">V2 · {{ language === 'en' ? 'Complete chains' : 'Cadenas completas' }}</label>
     </fieldset>
-    <article id="result-version-content" class="markdown result-delivery-content" :aria-label="`Obtención de resultados ${version.toUpperCase()}`" v-html="content"></article>
+    <article id="result-version-content" class="markdown result-delivery-content" :aria-label="`${language === 'en' ? 'Getting results' : 'Obtención de resultados'} ${version.toUpperCase()}`" v-html="content"></article>
   </section>
 </template>
 
