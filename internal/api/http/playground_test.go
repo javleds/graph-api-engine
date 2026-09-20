@@ -85,6 +85,20 @@ func TestPlaygroundCrossOriginAndPage(t *testing.T) {
 	}
 }
 
+func TestPlaygroundWebhookDemoSinkRequiresMarker(t *testing.T) {
+	h, _, _ := newTestAPI(t)
+	if got := request(t, h, "POST", "/playground/api/webhook", []byte(`{"event":"demo"}`), "", ""); got.Code != 403 {
+		t.Fatalf("unmarked webhook: %d", got.Code)
+	}
+	r := httptest.NewRequest("POST", "/playground/api/webhook", bytes.NewBufferString(`{"event":"demo"}`))
+	r.Header.Set("X-API-Engine-Playground", "demo")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != 204 {
+		t.Fatalf("marked webhook: %d", w.Code)
+	}
+}
+
 func TestPlaygroundAssetsAreExplicitAndEmbedded(t *testing.T) {
 	h, _, _ := newTestAPI(t)
 	for _, name := range []string{"playground.css", "playground.js", "json-viewer.js"} {

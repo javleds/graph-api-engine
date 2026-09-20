@@ -90,9 +90,29 @@ const example = {
 const pokemonExample = {
   definition: { version: 1, api: { baseUrl: "https://pokeapi.co/api/v2", limits: { requests: 5, per: "1s", concurrency: 2 }, cache: { ttl: "1d" } }, calls: [{ name: "idioma", type: "single", request: { method: "GET", path: "/language/es/" } }, { name: "pokemon", type: "collection", select: "pokemon_entries", request: { method: "GET", path: "/pokedex/paldea/" }, children: [{ name: "especie", type: "single", request: { method: "GET", path: "/pokemon-species/{parent.pokemon_species.name}/" } }] }] },
 };
-if (new URLSearchParams(location.search).get("example") === "pokemon") {
-  $("request").value = JSON.stringify(pokemonExample, null, 2);
+const playgroundWebhook = () => `${location.origin}/playground/api/webhook`;
+const demoWebhook = () => ({
+  url: playgroundWebhook(),
+  headers: { "X-API-Engine-Playground": "demo" },
+});
+const v1WebhookExample = { ...pokemonExample, webhook: { ...demoWebhook(), payload: "status" } };
+const v2WebhookExample = { ...pokemonExample, webhook: { ...demoWebhook(), ordering: "completion", maxInFlight: 0 } };
+const examples = {
+  basic: { version: "1", request: example, message: "Ejemplo básico cargado. Sustituye example.com por un proveedor permitido que devuelva JSON." },
+  pokemon: { version: "1", request: pokemonExample, message: "Ejemplo PokéAPI cargado." },
+  "pokemon-v1-webhook": { version: "1", request: v1WebhookExample, message: "Ejemplo V1 con webhook local cargado. El webhook sólo confirma la finalización de la ejecución." },
+  "pokemon-v2-webhook": { version: "2", request: v2WebhookExample, message: "Ejemplo V2 con webhook local cargado. Prueba ordering y maxInFlight; cada cadena completa genera su evento." },
+};
+function loadExample(id) {
+  const selected = examples[id] || examples.basic;
+  $("execution-version").value = selected.version;
+  $("request").value = JSON.stringify(selected.request, null, 2);
   $("request").dispatchEvent(new Event("input"));
+  message(selected.message);
+}
+const initialExample = new URLSearchParams(location.search).get("example");
+if (initialExample) {
+  loadExample(initialExample);
 }
 $("logout")?.addEventListener("click", async () => { await fetch("/playground/api/session", { method: "DELETE" }); location.assign("/login"); });
 let generation = 0;
@@ -555,13 +575,7 @@ async function execute() {
     fail(error, session);
   }
 }
-$("example").addEventListener("click", () => {
-  elements.request.value = JSON.stringify(example, null, 2);
-  elements.request.dispatchEvent(new Event("input"));
-  message(
-    "Ejemplo cargado. Sustituye example.com por un proveedor permitido que devuelva JSON.",
-  );
-});
+$("example").addEventListener("click", () => loadExample("basic"));
 elements.execute.addEventListener("click", execute);
 elements.stop.addEventListener("click", stopTracking);
 elements["cancel-execution"].addEventListener("click", cancelExecution);

@@ -106,6 +106,7 @@ security:
     upstreamAllowedOrigins:
       - "https://example.com"
     webhookAllowedOrigins:
+      - "${APP_URL}"
       - "https://consumer.example.com"
     allowedPrivateCIDRs: []
     allowHTTPForDevelopment: true

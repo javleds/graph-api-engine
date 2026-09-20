@@ -1,12 +1,15 @@
 package http
 
 import (
-	"github.com/javleds/api-engine/internal/api/http/playground"
+	"io"
 	"net/http"
+
+	"github.com/javleds/api-engine/internal/api/http/playground"
 )
 
 func (s *Server) registerPlayground(mux *http.ServeMux) {
 	playground.Register(mux, s.authorizeWebPage)
+	mux.HandleFunc("POST /playground/api/webhook", s.playgroundWebhook)
 	s.registerPlaygroundSession(mux)
 	s.registerPlaygroundConfiguration(mux)
 	if s.PlaygroundAuth == nil {
@@ -33,6 +36,19 @@ func (s *Server) registerPlayground(mux *http.ServeMux) {
 	v2.ExecutionBasePath = "/playground/api/v2/executions"
 	v2.registerV2(mux, protection)
 	mux.Handle("POST /playground/api/v2/validate", protection.Handler(http.HandlerFunc(v2.validateRequest)))
+}
+
+// playgroundWebhook is a deliberately small local receiver used by the
+// authenticated examples. It acknowledges demo deliveries without exposing
+// them as an application webhook integration.
+func (s *Server) playgroundWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-API-Engine-Playground") != "demo" {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "")
+		return
+	}
+	defer r.Body.Close()
+	_, _ = io.Copy(io.Discard, http.MaxBytesReader(w, r.Body, 1<<20))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) authorizeWebPage(w http.ResponseWriter, r *http.Request) bool {

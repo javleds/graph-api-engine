@@ -34,6 +34,10 @@ function navigateDocsTabs(event: KeyboardEvent) {
 }
 const configQuery = ref(''), requestQuery = ref(''), configError = ref('');
 const effectiveConfig = ref<{ current: Config; defaults: Config }>();
+const pokemonRequest = JSON.parse(pokemonExample) as Record<string, unknown>;
+const demoWebhook = () => ({ url: `${location.origin}/playground/api/webhook`, headers: { 'X-API-Engine-Playground': 'demo' } });
+const pokemonV1WebhookExample = JSON.stringify({ ...pokemonRequest, webhook: { ...demoWebhook(), payload: 'status' } }, null, 2);
+const pokemonV2WebhookExample = JSON.stringify({ ...pokemonRequest, webhook: { ...demoWebhook(), ordering: 'completion', maxInFlight: 0 } }, null, 2);
 
 const sections = [
   ['root', 'Documento'], ['http', 'HTTP'], ['executions', 'Ejecuciones'], ['fetch', 'Fetch'],
@@ -238,7 +242,7 @@ async function login() {
   catch { error.value = 'No se pudo conectar con el servicio.'; } finally { loading.value = false; }
 }
 async function logout() { await fetch('/playground/api/session', { method: 'DELETE' }); location.assign('/login'); }
-function tryExample() { location.assign('/playground?example=pokemon'); }
+function tryExample(example: string) { location.assign(`/playground?example=${encodeURIComponent(example)}`); }
 onMounted(async () => { if (path.value !== '/login' && !(await fetch('/playground/api/session')).ok) { location.replace('/login'); return; } if (path.value === '/docs') await loadConfiguration(); });
 </script>
 
@@ -255,7 +259,7 @@ onMounted(async () => { if (path.value !== '/login' && !(await fetch('/playgroun
       <ResultsGuide v-else />
       </div>
     </section>
-    <section v-else-if="path === '/examples'" class="documentation"><p class="eyebrow">EJEMPLOS</p><h1>PokéAPI · bosque con relaciones</h1><p class="lead">Obtiene el idioma español, los Pokémon de la Pokédex de Paldea y la especie de cada entrada.</p><div class="example-grid"><article><h2>Cómo leerlo</h2><p>Dos raíces independientes. <code>pokemon</code> selecciona <code>pokemon_entries</code>; su hijo usa <code>{parent.pokemon_species.name}</code> para resolver cada especie.</p><button @click="tryExample">Inténtalo en playground →</button></article><pre aria-label="Ejemplo JSON de PokéAPI">{{ pokemonExample }}</pre></div></section>
+    <section v-else-if="path === '/examples'" class="documentation"><p class="eyebrow">EJEMPLOS REPRODUCIBLES</p><h1>PokéAPI · tres formas de consumir el grafo</h1><p class="lead">Los tres ejemplos consultan el mismo bosque con relaciones. Los botones cargan el request en el playground; el webhook de V1 y V2 apunta al receptor fijo del host actual.</p><div class="example-grid examples-grid"><article><span class="example-version">BASE</span><h2>Request básico</h2><p>El punto de partida sin webhook. Consulta el resultado desde el viewer y por API.</p><button @click="tryExample('basic')">Replay básico →</button><pre aria-label="Ejemplo básico">{{ requestSchemaExample }}</pre></article><article><span class="example-version">V1 · WEBHOOK</span><h2>Resultado terminal</h2><p>El webhook sólo se envía cuando termina toda la ejecución. No hay un evento por cada Pokémon.</p><button @click="tryExample('pokemon-v1-webhook')">Replay V1 →</button><pre aria-label="Ejemplo V1 con webhook">{{ pokemonV1WebhookExample }}</pre></article><article><span class="example-version">V2 · WEBHOOK</span><h2>Cadenas completas</h2><p>Ejemplo pensado específicamente para V2: cada Pokémon se publica al completar sus hijos. Cambia <code>ordering</code> y <code>maxInFlight</code> en el editor.</p><button @click="tryExample('pokemon-v2-webhook')">Replay V2 →</button><pre aria-label="Ejemplo V2 con webhook">{{ pokemonV2WebhookExample }}</pre></article></div></section>
     <section v-else class="documentation"><h1>Abriendo playground…</h1></section>
   </main>
 </template>

@@ -14,7 +14,9 @@ Sustituir el playground abierto por una consola web autenticada, con login, docu
 
 ## Interfaz
 
-La SPA Vue sirve login, playground, documentación de operación y consumo, y ejemplos. El botón de un ejemplo navega a `/playground?example=<id>`; el editor carga solamente el ejemplo empaquetado correspondiente.
+La SPA Vue sirve login, playground, documentación de operación y consumo, y ejemplos. El botón de un ejemplo navega a `/playground?example=<id>`; el editor carga solamente el ejemplo empaquetado correspondiente. `/examples` publica tres variantes reproducibles: request básico, V1 con webhook terminal y V2 con `ordering`/`maxInFlight`.
+
+Los ejemplos con webhook apuntan a `POST /playground/api/webhook` en el host actual y envían `X-API-Engine-Playground: demo`. El receptor sólo confirma la entrega para que el usuario pueda observar el comportamiento de la cola; no almacena ni procesa datos de negocio. El origen configurado en `http.publicBaseUrl` debe estar incluido en `security.egress.webhookAllowedOrigins` (el `config.example.yml` ya lo muestra con `${APP_URL}`).
 
 ## Validación
 
