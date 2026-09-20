@@ -30,6 +30,11 @@ type v2Machine struct {
 	sortedKeys     map[string][]string
 	sequence       int64
 	resultsEnabled bool
+	fork           func(v2Frame, *execution.V2Commit) bool
+	waitChildren   func() bool
+	resultNode     string
+	parallel       bool
+	blocked        bool
 }
 
 func (m *v2Machine) nodeID(path string) string {
@@ -85,6 +90,9 @@ func (m *v2Machine) recordFailure(frame v2Frame, failure execution.NodeFailure, 
 	report.ErrorSummary.Truncated = report.ErrorSummary.Returned < report.ErrorSummary.Total
 	raw, _ := json.Marshal(failure)
 	commit.Chunks = append(commit.Chunks, execution.V2Chunk{Type: "error", NodeID: frame.NodeID, Path: frame.Path, Value: raw})
+	if m.parallel && m.resultNode != "" {
+		commit.ResultErrors = append(commit.ResultErrors, execution.V2ResultError{NodeID: m.resultNode, Failure: failure})
+	}
 }
 func (m *v2Machine) input(ctx context.Context, ref v2InputRef) (any, error) {
 	if ref.Key != m.cachedKey {
@@ -285,8 +293,6 @@ func (m *v2Machine) stepItem(ctx context.Context, frame v2Frame, index int, comm
 	if frame.Cursor < len(call.Children) {
 		childIndex := frame.Cursor
 		child := call.Children[childIndex]
-		frame.Cursor++
-		m.checkpoint.Stack[index] = frame
 		ancestors := make(map[string]v2InputRef, len(frame.Ancestors)+2)
 		for key, ref := range frame.Ancestors {
 			ancestors[key] = ref
@@ -295,7 +301,19 @@ func (m *v2Machine) stepItem(ctx context.Context, frame v2Frame, index int, comm
 		ancestors["parent"] = frame.Ref
 		path := v2Path(frame.Path, child.Name)
 		indices := append(append([]int(nil), frame.Call...), childIndex)
-		m.push(v2Frame{Kind: "call", Call: indices, Ancestors: ancestors, NodeID: m.nodeID(path), ParentID: frame.NodeID, Key: child.Name, Path: path, ErrorStart: m.checkpoint.Report.ErrorSummary.Total})
+		childFrame := v2Frame{Kind: "call", Call: indices, Ancestors: ancestors, NodeID: m.nodeID(path), ParentID: frame.NodeID, Key: child.Name, Path: path, ErrorStart: m.checkpoint.Report.ErrorSummary.Total}
+		if m.fork != nil {
+			if !m.fork(childFrame, commit) {
+				return nil
+			}
+		} else {
+			m.push(childFrame)
+		}
+		frame.Cursor++
+		m.checkpoint.Stack[index] = frame
+		return nil
+	}
+	if m.waitChildren != nil && m.waitChildren() {
 		return nil
 	}
 	if len(call.Children) > 0 {
@@ -330,4 +348,9 @@ func (m *v2Machine) finishResult(frame v2Frame, status string, commit *execution
 		}
 	}
 	commit.Results = append(commit.Results, execution.V2Result{NodeID: frame.NodeID, Root: m.definition.Roots[frame.Call[0]].Name, Path: frame.Path, Index: frame.Index, Status: status, OccurredAt: time.Now().UTC(), ErrorSummary: execution.ErrorSummary{Total: errors, Returned: errors}, FirstChunk: frame.FirstChunk, LastChunk: m.sequence + int64(len(commit.Chunks))})
+	if m.parallel {
+		result := &commit.Results[len(commit.Results)-1]
+		result.StorageVersion = 2
+		result.SourceRoot = frame.Call[0]
+	}
 }

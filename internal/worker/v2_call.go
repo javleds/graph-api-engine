@@ -32,7 +32,10 @@ func (m *v2Machine) stepCall(ctx context.Context, frame v2Frame, index int, comm
 		frame.Phase = "reserve"
 		m.checkpoint.Stack[index] = frame
 	case "reserve":
-		if err := m.runner.V2Store.ReserveV2Budget(ctx, m.id, m.generation, "logical", int64(m.engine.Options.MaxLogicalRequests)); err != nil {
+		if m.parallel {
+			commit.LogicalReservations++
+			commit.MaxLogicalRequests = int64(m.engine.Options.MaxLogicalRequests)
+		} else if err := m.runner.V2Store.ReserveV2Budget(ctx, m.id, m.generation, "logical", int64(m.engine.Options.MaxLogicalRequests)); err != nil {
 			return false, err
 		}
 		frame.Phase = "fetch"
@@ -50,11 +53,21 @@ func (m *v2Machine) stepCall(ctx context.Context, frame v2Frame, index int, comm
 			if frame.Cursor < len(items) {
 				position := frame.Offset + int64(frame.Cursor)
 				ref := v2ChildRef(frame.Ref, strconv.Itoa(frame.Cursor))
+				path := v2Path(frame.Path, strconv.FormatInt(position, 10))
+				childFrame := v2Frame{Kind: "item", Call: frame.Call, Ref: ref, Ancestors: frame.Ancestors, NodeID: m.nodeID(path), ParentID: frame.NodeID, Index: &position, Path: path, ErrorStart: m.checkpoint.Report.ErrorSummary.Total}
+				if m.fork != nil {
+					if !m.fork(childFrame, commit) {
+						return true, nil
+					}
+				} else {
+					m.push(childFrame)
+				}
 				frame.Cursor++
 				m.checkpoint.Stack[index] = frame
-				path := v2Path(frame.Path, strconv.FormatInt(position, 10))
-				m.push(v2Frame{Kind: "item", Call: frame.Call, Ref: ref, Ancestors: frame.Ancestors, NodeID: m.nodeID(path), ParentID: frame.NodeID, Index: &position, Path: path, ErrorStart: m.checkpoint.Report.ErrorSummary.Total})
 				return false, nil
+			}
+			if m.waitChildren != nil && m.waitChildren() {
+				return true, nil
 			}
 			if !frame.Stop {
 				frame.Offset += int64(len(items))

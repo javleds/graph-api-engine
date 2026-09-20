@@ -10,12 +10,15 @@ import (
 	"time"
 )
 
-// WriteV2Result streams the confirmed DFS range, then diagnostics if present.
+// WriteV2Result streams confirmed content, then diagnostics if present.
 // Memory is bounded by a chunk page plus nesting depth, not by subtree size.
 func (s *ExecutionStore) WriteV2Result(ctx context.Context, owner string, id d.ExecutionID, node string, now time.Time, w io.Writer) error {
 	result, err := s.ReadV2Result(ctx, owner, id, node, now)
 	if err != nil {
 		return err
+	}
+	if result.StorageVersion == 2 {
+		return s.writeV2TreeResult(ctx, owner, id, result, w)
 	}
 	raw, err := json.Marshal(result)
 	if err != nil {

@@ -15,7 +15,7 @@ import (
 	"github.com/javleds/api-engine/internal/platform/config"
 )
 
-func TestV2NodeWebhookPublishesCompleteChainBeforeNextChild(t *testing.T) {
+func TestV2NodeWebhookPublishesCompleteChainWhileOtherChildPending(t *testing.T) {
 	blocked := make(chan struct{})
 	release := make(chan struct{})
 	var releaseOnce sync.Once
@@ -75,15 +75,32 @@ func TestV2NodeWebhookPublishesCompleteChainBeforeNextChild(t *testing.T) {
 	case <-time.After(20 * time.Second):
 		t.Fatal("second child did not start")
 	}
-	code, raw = v2ServiceRequest(t, base, "GET", path+"/results", token, nil)
 	var page domain.V2ResultPage
-	if code != http.StatusOK || json.Unmarshal(raw, &page) != nil || len(page.Results) != 2 || page.Terminal || page.Results[0].Root != "language" || page.Results[1].Root != "items" {
-		t.Fatalf("expected two closed chains with second child pending: %d %s", code, raw)
+	resultDeadline := time.Now().Add(5 * time.Second)
+	for {
+		code, raw = v2ServiceRequest(t, base, "GET", path+"/results", token, nil)
+		if code != http.StatusOK || json.Unmarshal(raw, &page) != nil || page.Terminal || len(page.Results) > 2 {
+			t.Fatalf("invalid results with second child pending: %d %s", code, raw)
+		}
+		if len(page.Results) == 2 {
+			break
+		}
+		if time.Now().After(resultDeadline) {
+			t.Fatalf("expected two closed chains with second child pending: %d %s", code, raw)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	byRoot := make(map[string]domain.V2Result)
+	for _, result := range page.Results {
+		byRoot[result.Root] = result
+	}
+	if byRoot["language"].NodeID == "" || byRoot["items"].NodeID == "" {
+		t.Fatalf("expected language and items results: %+v", page.Results)
 	}
 	expected := json.RawMessage(`{"id":1,"name":"bulbasaur","detail":{"species":"seed","number":9007199254740993}}`)
-	code, raw = v2ServiceRequest(t, base, "GET", path+"/results/"+page.Results[1].NodeID, token, nil)
+	code, raw = v2ServiceRequest(t, base, "GET", path+"/results/"+byRoot["items"].NodeID, token, nil)
 	var result completeNodeResult
-	if code != http.StatusOK || json.Unmarshal(raw, &result) != nil || !result.Complete || result.EventID != page.Results[1].EventID || !sameJSON(result.Data, expected) {
+	if code != http.StatusOK || json.Unmarshal(raw, &result) != nil || !result.Complete || result.EventID != byRoot["items"].EventID || !sameJSON(result.Data, expected) {
 		t.Fatalf("complete result: %d %s", code, raw)
 	}
 	seen := map[string]bool{}
@@ -103,7 +120,7 @@ func TestV2NodeWebhookPublishesCompleteChainBeforeNextChild(t *testing.T) {
 			t.Fatalf("expected node webhooks before release, got %d", len(seen))
 		}
 	}
-	if !seen[result.EventID] || !seen[page.Results[0].EventID] {
+	if !seen[result.EventID] || !seen[byRoot["language"].EventID] {
 		t.Fatalf("webhooks do not share result identities: %v", seen)
 	}
 	unblock()

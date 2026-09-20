@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	definition "github.com/javleds/api-engine/internal/definition/domain"
 	"time"
 
 	d "github.com/javleds/api-engine/internal/execution/domain"
@@ -75,6 +76,15 @@ func (s *ExecutionStore) Create(ctx context.Context, snapshot d.ExecutionSnapsho
 		return d.Execution{}, false, err
 	}
 	if snapshot.APIVersion == 2 {
+		var compiled definition.CompiledDefinition
+		if err := json.Unmarshal(snapshot.Definition, &compiled); err != nil {
+			return d.Execution{}, false, err
+		}
+		if compiled.Webhook != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE executions SET webhook_ordering=?,webhook_max_in_flight=? WHERE id=?`, compiled.Webhook.Ordering, compiled.Webhook.MaxInFlight, snapshot.ID); err != nil {
+				return d.Execution{}, false, err
+			}
+		}
 		if err := s.initializeV2(ctx, tx, snapshot.ID, snapshot.DeadlineAt); err != nil {
 			return d.Execution{}, false, err
 		}

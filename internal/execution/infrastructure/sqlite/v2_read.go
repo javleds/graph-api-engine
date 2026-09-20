@@ -170,7 +170,7 @@ func (s *ExecutionStore) PurgeV2(ctx context.Context, now time.Time, limit int) 
 	return tx.Commit()
 }
 func (s *ExecutionStore) purgeV2(ctx context.Context, tx *sql.Tx, now time.Time, limit int) error {
-	for _, table := range []string{"v2_results", "v2_chunks", "v2_nodes", "v2_inputs", "v2_tasks"} {
+	for _, table := range []string{"v2_result_errors", "v2_results", "v2_chunks", "v2_nodes", "v2_inputs", "v2_tasks"} {
 		pendingFilter := ""
 		// Keep only event metadata until the subscriber accounts for expired deliveries.
 		if table == "v2_results" {

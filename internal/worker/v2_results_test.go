@@ -38,6 +38,10 @@ func durableResultRunner(t *testing.T, fake *fakeFetcher, roots ...definition.Co
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Existing tests exercise the preserved DFS/checkpoint-v1 contract.
+	if _, err = db.ExecContext(ctx, `UPDATE v2_state SET checkpoint_version=1 WHERE execution_id='results'`); err != nil {
+		t.Fatal(err)
+	}
 	return &V2Runner{Store: store, V2Store: store, Finalizer: executiondb.NewExecutionFinalizer(store), Engine: &Engine{Fetcher: fake}}, store
 }
 

@@ -53,6 +53,9 @@ func (r *V2Runner) Run(parent context.Context, id execution.ExecutionID) error {
 	if err = decoder.Decode(&compiled); err != nil {
 		return err
 	}
+	if state.CheckpointVersion == 2 {
+		return r.runConcurrent(parent, snapshot, current, state, compiled)
+	}
 	checkpoint := v2Checkpoint{Version: 1, Report: execution.EmptyReport()}
 	for _, root := range compiled.Roots {
 		checkpoint.Report.Roots = append(checkpoint.Report.Roots, execution.RootOutcome{Name: root.Name, Status: "not_started"})

@@ -12,7 +12,7 @@ import (
 )
 
 func (s *ExecutionStore) initializeV2(ctx context.Context, tx *sql.Tx, id d.ExecutionID, deadline time.Time) error {
-	_, err := tx.ExecContext(ctx, "INSERT INTO v2_state(execution_id,deadline_at,results_enabled) VALUES(?,?,1)", id, deadline.UnixMilli())
+	_, err := tx.ExecContext(ctx, "INSERT INTO v2_state(execution_id,deadline_at,results_enabled,checkpoint_version) VALUES(?,?,1,2)", id, deadline.UnixMilli())
 	return err
 }
 func (s *ExecutionStore) ReadV2State(ctx context.Context, id d.ExecutionID) (d.V2State, error) {
@@ -109,6 +109,19 @@ func (s *ExecutionStore) CommitV2Task(ctx context.Context, c d.V2Commit) error {
 	if owner != c.OwnerID || generation != c.Generation || terminal {
 		return d.ErrVersionConflict
 	}
+	if c.LogicalReservations > 0 {
+		result, err := tx.ExecContext(ctx, `UPDATE v2_state SET logical_requests=logical_requests+? WHERE execution_id=? AND logical_requests<=?-?`, c.LogicalReservations, c.ID, c.MaxLogicalRequests, c.LogicalReservations)
+		if err != nil {
+			return err
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return d.ErrV2Limit
+		}
+	}
 	if c.Task.Key != "" {
 		blob, err := s.seal(ctx, "v2_tasks", owner, string(c.ID)+":"+c.Task.Key, c.Task.Payload)
 		if err != nil {
@@ -162,6 +175,14 @@ func (s *ExecutionStore) CommitV2Task(ctx context.Context, c d.V2Commit) error {
 	}
 	if err := s.insertV2Results(ctx, tx, c, seq); err != nil {
 		return err
+	}
+	if err := s.insertV2ResultErrors(ctx, tx, c); err != nil {
+		return err
+	}
+	if c.SourceRoot != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE v2_state SET source_root=?,source_index=? WHERE execution_id=?`, *c.SourceRoot, c.SourceIndex, c.ID); err != nil {
+			return err
+		}
 	}
 	var tasks, nodes, stored int64
 	err = tx.QueryRowContext(ctx, `SELECT pending_tasks,node_count,stored_bytes FROM v2_state WHERE execution_id=?`, c.ID).Scan(&tasks, &nodes, &stored)

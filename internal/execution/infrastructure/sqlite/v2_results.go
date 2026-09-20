@@ -23,7 +23,7 @@ func (s *ExecutionStore) insertV2Results(ctx context.Context, tx *sql.Tx, c d.V2
 		return d.ErrV2ResultsUnavailable
 	}
 	for _, result := range c.Results {
-		if result.FirstChunk < 1 || result.LastChunk < result.FirstChunk || result.LastChunk > lastChunk {
+		if result.StorageVersion != 2 && (result.FirstChunk < 1 || result.LastChunk < result.FirstChunk || result.LastChunk > lastChunk) {
 			return errors.New("invalid completed result range")
 		}
 		var nodeBlob []byte
@@ -59,7 +59,18 @@ func (s *ExecutionStore) insertV2Results(ctx context.Context, tx *sql.Tx, c d.V2
 		if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO v2_results(execution_id,node_id,sequence,event_id,payload_blob,plaintext_size,first_chunk,last_chunk,occurred_at) VALUES(?,?,?,?,?,?,?,?,?)`, c.ID, result.NodeID, sequence, result.EventID, blob, len(raw), result.FirstChunk, result.LastChunk, result.OccurredAt.UnixMilli())
+		storageVersion := result.StorageVersion
+		if storageVersion == 0 {
+			storageVersion = 1
+		}
+		sourceIndex := int64(-1)
+		if result.Index != nil {
+			sourceIndex = *result.Index
+		}
+		if storageVersion == 2 {
+			result.FirstChunk, result.LastChunk = lastChunk, lastChunk
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO v2_results(execution_id,node_id,sequence,event_id,payload_blob,plaintext_size,first_chunk,last_chunk,occurred_at,storage_version,source_root,source_index) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, c.ID, result.NodeID, sequence, result.EventID, blob, len(raw), result.FirstChunk, result.LastChunk, result.OccurredAt.UnixMilli(), storageVersion, result.SourceRoot, sourceIndex)
 		if err != nil {
 			return err
 		}
@@ -135,7 +146,7 @@ func (s *ExecutionStore) ReadV2Result(ctx context.Context, owner string, id d.Ex
 		return result, err
 	}
 	var blob []byte
-	err := s.db.QueryRowContext(ctx, `SELECT payload_blob,first_chunk,last_chunk FROM v2_results WHERE execution_id=? AND node_id=?`, id, node).Scan(&blob, &result.FirstChunk, &result.LastChunk)
+	err := s.db.QueryRowContext(ctx, `SELECT payload_blob,first_chunk,last_chunk,storage_version FROM v2_results WHERE execution_id=? AND node_id=?`, id, node).Scan(&blob, &result.FirstChunk, &result.LastChunk, &result.StorageVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return result, d.ErrNotFound
 	}

@@ -1,0 +1,10 @@
+DROP TABLE v2_result_errors;
+DROP INDEX webhook_deliveries_execution_status;
+DROP INDEX v2_results_source;
+ALTER TABLE v2_results DROP COLUMN source_index;
+ALTER TABLE v2_results DROP COLUMN source_root;
+ALTER TABLE v2_results DROP COLUMN storage_version;
+ALTER TABLE v2_state DROP COLUMN source_index;
+ALTER TABLE v2_state DROP COLUMN source_root;
+ALTER TABLE executions DROP COLUMN webhook_max_in_flight;
+ALTER TABLE executions DROP COLUMN webhook_ordering;
