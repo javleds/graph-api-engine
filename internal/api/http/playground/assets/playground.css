@@ -231,6 +231,11 @@ summary { cursor: pointer; }
 .v2-nodes li { margin: 8px 0; }
 .v2-nodes button, .v2-chunks button { width: 100%; text-align: left; overflow-wrap: anywhere; }
 .v2-chunks { max-height: 480px; overflow: auto; }
+.v2-result-list { max-height: 480px; overflow: auto; padding-left: 20px; }
+.v2-result-list li { margin: 8px 0; }
+.v2-result-list button { width: 100%; text-align: left; overflow-wrap: anywhere; }
+.v2-result-detail { overflow-wrap: anywhere; margin: 16px 0; }
+.v2-result-detail .json-tree { max-height: 600px; overflow: auto; }
 #v2-output textarea { width: 100%; min-height: 360px; }
 #v2-output .mode-switch { margin-bottom: 12px; }
 footer { display: flex; justify-content: space-between; gap: 12px; padding: 22px 0; color: #8190a9; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }

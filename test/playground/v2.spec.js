@@ -26,6 +26,122 @@ async function prepare(page) {
   await page.locator("#request").fill(requestBody);
 }
 
+test("complete result stays mounted and readable during later arrivals", async ({ page }) => {
+  let sequence = "1";
+  let reads = 0;
+  await page.route("**/playground/api/v2/executions", route => route.fulfill({ status: 202, json: { id, status: "pending" } }));
+  await page.route(`**${endpoint}`, route => route.fulfill({ json: { id, status: "running", v2: { resultsEnabled: true, lastResultSequence: sequence, resultCount: Number(sequence) } } }));
+  await page.route(`**${endpoint}/results?*`, route => {
+    reads++;
+    const through = new URL(route.request().url()).searchParams.get("through");
+    return route.fulfill({ json: { results: [{ eventId: "event1", nodeId: "bulbasaur", root: "pokemon", index: 0, sequence: "1", status: "completed" }], nextCursor: "1", lastSequence: through, hasMore: false, terminal: false } });
+  });
+  await page.route(`**${endpoint}/results/bulbasaur`, route => route.fulfill({ contentType: "application/json", body: '{"nodeId":"bulbasaur","data":{"id":9007199254740993,"species":{"name":"bulbasaur"}},"complete":true}' }));
+  await prepare(page);
+  await page.locator("#execute").click();
+  const row = page.locator(".v2-result-list button").first();
+  await row.click();
+  await expect(page.locator(".v2-result-detail")).toContainText("Cadena terminada");
+  await page.getByText("JSON original", { exact: true }).click();
+  await expect(page.getByLabel("Resultado JSON original (solo lectura)")).toHaveValue(/9007199254740993/);
+  await row.evaluate(node => { node.dataset.stable = "yes"; node.focus(); });
+  sequence = "3";
+  await expect(page.getByRole("button", { name: "Hay 2 resultados nuevos. Ver resultados nuevos" })).toBeVisible();
+  await expect(row).toHaveAttribute("data-stable", "yes");
+  await expect(row).toBeFocused();
+  await expect(page.getByLabel("Resultado JSON original (solo lectura)")).toBeVisible();
+  expect(reads).toBe(1);
+  await page.getByRole("button", { name: "Hay 2 resultados nuevos. Ver resultados nuevos" }).click();
+  await expect.poll(() => reads).toBe(2);
+});
+
+test("large completed result offers bounded branch exploration and download", async ({ page }) => {
+  await page.route("**/playground/api/v2/executions", route => route.fulfill({ status: 202, json: { id, status: "pending" } }));
+  await page.route(`**${endpoint}`, route => route.fulfill({ json: { id, status: "completed", v2: { resultsEnabled: true, lastResultSequence: "1", resultCount: 1 } } }));
+  await page.route(`**${endpoint}/results?*`, route => route.fulfill({ json: { results: [{ nodeId: "large", root: "pokemon", status: "completed" }], nextCursor: "1", hasMore: false, terminal: true } }));
+  await page.route(`**${endpoint}/results/large`, route => route.fulfill({ json: { data: "x".repeat(1024 * 1024), complete: true } }));
+  await prepare(page);
+  await page.locator("#execute").click();
+  await page.locator(".v2-result-list button").click();
+  await expect(page.getByRole("button", { name: "Explorar ramas del resultado" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Descargar resultado JSON" })).toHaveAttribute("href", `${endpoint}/results/large`);
+  await expect(page.getByLabel("Resultado JSON original (solo lectura)")).toHaveCount(0);
+});
+
+test("terminal execution tracks pending webhooks without replacing its result", async ({ page }) => {
+  let delivered = false;
+  let resultReads = 0;
+  await page.route("**/playground/api/v2/executions", route => route.fulfill({ status: 202, json: { id, status: "pending" } }));
+  await page.route(`**${endpoint}`, route => route.fulfill({ json: { id, status: "completed", v2: { resultsEnabled: true, lastResultSequence: "1", resultCount: 1 }, nodeWebhookSummary: { pending: delivered ? 0 : 1, delivered: delivered ? 1 : 0, failed: 0 } } }));
+  await page.route(`**${endpoint}/results?*`, route => {
+    resultReads++;
+    return route.fulfill({ json: { results: [{ nodeId: "node", root: "pokemon", status: "completed" }], nextCursor: "1", lastSequence: "1", hasMore: false, terminal: true } });
+  });
+  await prepare(page);
+  await page.locator("#execute").click();
+  await expect(page.locator("#tracking-state")).toHaveText("Ejecución terminada · notificaciones pendientes");
+  const row = page.locator(".v2-result-list button");
+  await row.evaluate(node => { node.dataset.stable = "yes"; node.focus(); });
+  await expect(page.locator("#stop")).toBeEnabled();
+  delivered = true;
+  await expect(page.locator("#tracking-state")).toHaveText("Ejecución terminada");
+  await expect(page.locator(".v2-results")).toContainText("0 pendientes · 1 entregados · 0 fallidos");
+  await expect(row).toHaveAttribute("data-stable", "yes");
+  await expect(row).toBeFocused();
+  expect(resultReads).toBe(1);
+});
+
+test("first results read uses the server snapshot when a node closes after status", async ({ page }) => {
+  let sequence = "0";
+  const queries = [];
+  await page.route("**/playground/api/v2/executions", route => route.fulfill({ status: 202, json: { id, status: "pending" } }));
+  await page.route(`**${endpoint}`, route => route.fulfill({ json: { id, status: "running", v2: { resultsEnabled: true, lastResultSequence: sequence, resultCount: Number(sequence) } } }));
+  await page.route(`**${endpoint}/results?*`, route => {
+    const query = new URL(route.request().url()).searchParams;
+    queries.push(query.get("through"));
+    sequence = "1";
+    return route.fulfill({ json: { results: [{ nodeId: "node", root: "pokemon", status: "completed" }], nextCursor: "1", lastSequence: "1", hasMore: true, terminal: false } });
+  });
+  await prepare(page);
+  await page.locator("#execute").click();
+  await expect(page.locator(".v2-result-list")).toContainText("pokemon");
+  await page.getByRole("button", { name: "Resultados siguientes" }).click();
+  await expect.poll(() => queries.length).toBe(2);
+  expect(queries).toEqual(["0", "1"]);
+  await expect(page.getByRole("button", { name: /Ver resultados nuevos/ })).toBeHidden();
+});
+
+test("result pagination keeps its cutoff and ignores an obsolete detail response", async ({ page }) => {
+  let sequence = "2";
+  let firstDetail;
+  const queries = [];
+  await page.route("**/playground/api/v2/executions", route => route.fulfill({ status: 202, json: { id, status: "pending" } }));
+  await page.route(`**${endpoint}`, route => route.fulfill({ json: { id, status: "running", v2: { resultsEnabled: true, lastResultSequence: sequence, resultCount: Number(sequence) } } }));
+  await page.route(`**${endpoint}/results?*`, route => {
+    const query = new URL(route.request().url()).searchParams;
+    queries.push({ after: query.get("after"), through: query.get("through") });
+    const second = query.get("after") === "1";
+    return route.fulfill({ json: { results: [{ nodeId: second ? "second" : "first", root: second ? "second" : "first", status: "completed" }], nextCursor: second ? "2" : "1", hasMore: !second, terminal: false } });
+  });
+  await page.route(`**${endpoint}/results/first`, route => { firstDetail = route; });
+  await page.route(`**${endpoint}/results/second`, route => route.fulfill({ json: { data: "second result", complete: true } }));
+  await prepare(page);
+  await page.locator("#execute").click();
+  await page.locator(".v2-result-list button").click();
+  await expect.poll(() => Boolean(firstDetail)).toBe(true);
+  sequence = "3";
+  await expect(page.getByRole("button", { name: "Hay 1 resultados nuevos. Ver resultados nuevos" })).toBeVisible();
+  await page.getByRole("button", { name: "Resultados siguientes" }).click();
+  await expect(page.locator(".v2-result-list")).toContainText("second");
+  await page.locator(".v2-result-list button").click();
+  await expect(page.locator(".v2-result-detail")).toContainText("second result");
+  await firstDetail.fulfill({ json: { data: "obsolete first result", complete: true } }).catch(() => {});
+  await expect(page.locator(".v2-result-detail")).not.toContainText("obsolete first result");
+  await page.getByRole("button", { name: "Resultados anteriores" }).click();
+  await expect(page.locator(".v2-result-list")).toContainText("first");
+  expect(queries).toEqual([{ after: "0", through: "2" }, { after: "1", through: "2" }, { after: "0", through: "2" }]);
+});
+
 test("v2 lazy tree, bounded chunks and exact readonly scalar JSON", async ({
   page,
 }) => {
@@ -136,7 +252,7 @@ test("v2 validation follows selected mode without creating jobs", async ({
   expect(validations).toBe(1);
 });
 
-test("real v2 service publishes chunks and exposes a browsable root", async ({
+test("real v2 service publishes complete results with diagnostic chunks", async ({
   page,
 }) => {
   await prepare(page);
@@ -146,7 +262,8 @@ test("real v2 service publishes chunks and exposes a browsable root", async ({
     { timeout: 15000 },
   );
   await expect(page.locator("#status")).toContainText("Completado");
-  await expect(page.locator(".v2-nodes")).toContainText("items");
+  await expect(page.locator(".v2-result-list")).toContainText("items");
+  await page.getByText("Diagnóstico: árbol incremental y chunks", { exact: true }).click();
   await page.getByRole("button", { name: "Chunks", exact: true }).click();
   await expect(page.locator(".v2-chunks button").first()).toBeVisible();
 });

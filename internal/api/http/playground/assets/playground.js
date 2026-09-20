@@ -388,7 +388,9 @@ async function poll(session, loadResult = true) {
     if (version() === "2") {
       elements["response-empty"].hidden = true;
       elements["response-label"].textContent =
-        "Fragmentos confirmados en disco · el árbol se consulta por ramas.";
+        status.v2?.resultsEnabled
+          ? "Cadenas completas · cada resultado permanece disponible mientras continúa la ejecución."
+          : "Fragmentos confirmados en disco · el árbol se consulta por ramas.";
       const more = await v2Viewer.update(
         `${apiBase()}/${encodeURIComponent(currentID)}`,
         status,
@@ -400,11 +402,19 @@ async function poll(session, loadResult = true) {
         "completed_with_errors",
         "failed",
       ].includes(status.status);
+      const pendingNotifications = (status.nodeWebhookSummary?.pending ?? 0) > 0;
+      const tracking = !terminal || more || pendingNotifications;
       setTracking(
-        !terminal || more,
-        terminal && !more ? "Ejecución terminada" : "Recibiendo fragmentos…",
+        tracking,
+        terminal && !more
+          ? pendingNotifications
+            ? "Ejecución terminada · notificaciones pendientes"
+            : "Ejecución terminada"
+          : status.v2?.resultsEnabled
+            ? "Esperando cadenas completas…"
+            : "Recibiendo fragmentos…",
       );
-      if (!terminal || more)
+      if (tracking)
         timer = setTimeout(() => poll(session), more ? 0 : 1000);
       return;
     }
