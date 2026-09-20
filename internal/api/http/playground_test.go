@@ -3,11 +3,25 @@ package http_test
 import (
 	"bytes"
 	"encoding/json"
+	api "github.com/javleds/api-engine/internal/api/http"
+	platformconfig "github.com/javleds/api-engine/internal/platform/config"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 )
+
+func TestPlaygroundRoutesAreHiddenWhenUIIsDisabled(t *testing.T) {
+	h := (&api.Server{Configuration: &platformconfig.Config{UI: platformconfig.UIConfig{Language: "es", Enabled: false}}}).Handler()
+	for _, path := range []string{"/", "/login", "/docs", "/examples", "/playground", "/playground/assets/playground.js", "/playground/api/configuration"} {
+		if response := request(t, h, "GET", path, nil, "", ""); response.Code != 404 {
+			t.Fatalf("%s: got %d", path, response.Code)
+		}
+	}
+	if response := request(t, h, "GET", "/health/live", nil, "", ""); response.Code != 200 {
+		t.Fatalf("health: %d", response.Code)
+	}
+}
 
 func TestPlaygroundOpenRoutesRemainIsolated(t *testing.T) {
 	h, _, _ := newTestAPI(t)
@@ -101,7 +115,7 @@ func TestPlaygroundWebhookDemoSinkRequiresMarker(t *testing.T) {
 
 func TestPlaygroundAssetsAreExplicitAndEmbedded(t *testing.T) {
 	h, _, _ := newTestAPI(t)
-	for _, name := range []string{"playground.css", "playground.js", "json-viewer.js"} {
+	for _, name := range []string{"playground.css", "playground.js", "json-viewer.js", "i18n.js"} {
 		got := request(t, h, "GET", "/playground/assets/"+name, nil, "", "")
 		if got.Code != 200 || got.Body.Len() == 0 || got.Header().Get("X-Content-Type-Options") != "nosniff" {
 			t.Fatalf("%s: %d", name, got.Code)

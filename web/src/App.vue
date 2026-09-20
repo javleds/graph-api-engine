@@ -5,16 +5,19 @@ import serviceGuide from '../../docs/service-configuration.md?raw';
 import requestGuide from '../../docs/api-request-guide.md?raw';
 import ResultsGuide from './ResultsGuide.vue';
 import pokemonExample from '../../docs/request_examples/poke_api.json?raw';
+import { messagesFor, uiLanguage as currentUILanguage } from './i18n';
 
 type Config = Record<string, unknown>;
 type Row = { path: string; description: string; defaultValue: unknown; currentValue: unknown };
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
+const ui = messagesFor();
+const uiLanguage = currentUILanguage();
 const path = ref(location.pathname);
 const username = ref(''), password = ref(''), error = ref(''), loading = ref(false);
 const docsTabs = [
-  { id: 'service', label: 'Servicio y arranque' },
-  { id: 'consumption', label: 'Consumo de grafos' },
-  { id: 'results', label: 'Obtención de resultados' },
+  { id: 'service', label: ui.service },
+  { id: 'consumption', label: ui.consumption },
+  { id: 'results', label: ui.results },
 ] as const;
 const docsTab = ref<(typeof docsTabs)[number]['id']>('service');
 function navigateDocsTabs(event: KeyboardEvent) {
@@ -248,9 +251,9 @@ onMounted(async () => { if (path.value !== '/login' && !(await fetch('/playgroun
 
 <template>
   <main class="shell">
-    <header><a href="/playground" class="brand">↳ API ENGINE <small>v2</small></a><nav v-if="path !== '/login'"><a href="/playground">Playground</a><a href="/docs">Docs</a><a href="/examples">Ejemplos</a><button @click="logout">Cerrar sesión</button></nav></header>
-    <section v-if="path === '/login'" class="login"><p class="eyebrow">CONSOLA DE EJECUCIÓN</p><h1>Inicia sesión.</h1><p>Accede al playground y a la documentación del motor.</p><form @submit.prevent="login"><label>Usuario<input v-model="username" autocomplete="username" required></label><label>Contraseña<input v-model="password" type="password" autocomplete="current-password" required></label><p v-if="error" class="error" role="alert">{{ error }}</p><button :disabled="loading">{{ loading ? 'Validando…' : 'Entrar al playground' }}</button></form></section>
-    <section v-else-if="path === '/docs'" class="documentation"><p class="eyebrow">DOCUMENTACIÓN INTERACTIVA</p><h1>Opera y consume API Engine.</h1><p class="lead">Consulta la guía completa, los defaults y la configuración efectiva de este servicio.</p><div class="tabs" role="tablist" aria-label="Secciones de documentación">
+    <header><a href="/playground" class="brand">↳ API ENGINE <small>v2</small></a><nav v-if="path !== '/login'"><a href="/playground">{{ ui.playground }}</a><a href="/docs">{{ ui.docs }}</a><a href="/examples">{{ ui.examples }}</a><button @click="logout">{{ ui.logout }}</button></nav></header>
+    <section v-if="path === '/login'" class="login"><p class="eyebrow">{{ ui.loginEyebrow }}</p><h1>{{ ui.loginTitle }}</h1><p>{{ ui.loginLead }}</p><form @submit.prevent="login"><label>{{ uiLanguage === 'en' ? 'Username' : 'Usuario' }}<input v-model="username" autocomplete="username" required></label><label>{{ uiLanguage === 'en' ? 'Password' : 'Contraseña' }}<input v-model="password" type="password" autocomplete="current-password" required></label><p v-if="error" class="error" role="alert">{{ error }}</p><button :disabled="loading">{{ loading ? (uiLanguage === 'en' ? 'Validating…' : 'Validando…') : ui.loginButton }}</button></form></section>
+    <section v-else-if="path === '/docs'" class="documentation"><p class="eyebrow">{{ ui.docsEyebrow }}</p><h1>{{ ui.docsTitle }}</h1><p class="lead">{{ ui.docsLead }}</p><div class="tabs" role="tablist" :aria-label="ui.docs">
         <button v-for="tab in docsTabs" :id="'docs-tab-' + tab.id" :key="tab.id" role="tab" :aria-selected="docsTab === tab.id" :aria-controls="'docs-panel-' + tab.id" :tabindex="docsTab === tab.id ? 0 : -1" :class="{ active: docsTab === tab.id }" @click="docsTab = tab.id" @keydown="navigateDocsTabs">{{ tab.label }}</button>
       </div>
       <div :id="'docs-panel-' + docsTab" role="tabpanel" :aria-labelledby="'docs-tab-' + docsTab" tabindex="0">
@@ -259,7 +262,7 @@ onMounted(async () => { if (path.value !== '/login' && !(await fetch('/playgroun
       <ResultsGuide v-else />
       </div>
     </section>
-    <section v-else-if="path === '/examples'" class="documentation"><p class="eyebrow">EJEMPLOS REPRODUCIBLES</p><h1>PokéAPI · tres formas de consumir el grafo</h1><p class="lead">Los tres ejemplos consultan el mismo bosque con relaciones. Los botones cargan el request en el playground; el webhook de V1 y V2 apunta al receptor fijo del host actual.</p><div class="example-grid examples-grid"><article><span class="example-version">BASE</span><h2>Request básico</h2><p>El punto de partida sin webhook. Consulta el resultado desde el viewer y por API.</p><button @click="tryExample('basic')">Replay básico →</button><pre aria-label="Ejemplo básico">{{ requestSchemaExample }}</pre></article><article><span class="example-version">V1 · WEBHOOK</span><h2>Resultado terminal</h2><p>El webhook sólo se envía cuando termina toda la ejecución. No hay un evento por cada Pokémon.</p><button @click="tryExample('pokemon-v1-webhook')">Replay V1 →</button><pre aria-label="Ejemplo V1 con webhook">{{ pokemonV1WebhookExample }}</pre></article><article><span class="example-version">V2 · WEBHOOK</span><h2>Cadenas completas</h2><p>Ejemplo pensado específicamente para V2: cada Pokémon se publica al completar sus hijos. Cambia <code>ordering</code> y <code>maxInFlight</code> en el editor.</p><button @click="tryExample('pokemon-v2-webhook')">Replay V2 →</button><pre aria-label="Ejemplo V2 con webhook">{{ pokemonV2WebhookExample }}</pre></article></div></section>
+    <section v-else-if="path === '/examples'" class="documentation"><p class="eyebrow">{{ ui.examplesEyebrow }}</p><h1>{{ ui.examplesTitle }}</h1><p class="lead">{{ uiLanguage === 'en' ? 'All three examples query the same related graph. The buttons load the request into the playground; V1 and V2 webhooks target the current host.' : 'Los tres ejemplos consultan el mismo bosque con relaciones. Los botones cargan el request en el playground; el webhook de V1 y V2 apunta al receptor fijo del host actual.' }}</p><div class="example-grid examples-grid"><article><span class="example-version">BASE</span><h2>{{ uiLanguage === 'en' ? 'Basic request' : 'Request básico' }}</h2><p>{{ uiLanguage === 'en' ? 'The starting point without a webhook. Query the result from the viewer and API.' : 'El punto de partida sin webhook. Consulta el resultado desde el viewer y por API.' }}</p><button @click="tryExample('basic')">{{ ui.replayBasic }}</button><pre aria-label="Ejemplo básico">{{ requestSchemaExample }}</pre></article><article><span class="example-version">V1 · WEBHOOK</span><h2>{{ uiLanguage === 'en' ? 'Terminal result' : 'Resultado terminal' }}</h2><p>{{ uiLanguage === 'en' ? 'The webhook is sent only when the whole execution ends. There is no event per Pokémon.' : 'El webhook sólo se envía cuando termina toda la ejecución. No hay un evento por cada Pokémon.' }}</p><button @click="tryExample('pokemon-v1-webhook')">{{ ui.replayV1 }}</button><pre aria-label="Ejemplo V1 con webhook">{{ pokemonV1WebhookExample }}</pre></article><article><span class="example-version">V2 · WEBHOOK</span><h2>{{ uiLanguage === 'en' ? 'Complete chains' : 'Cadenas completas' }}</h2><p>{{ uiLanguage === 'en' ? 'Specifically designed for V2: each Pokémon is published after its children finish. Change ordering and maxInFlight in the editor.' : 'Ejemplo pensado específicamente para V2: cada Pokémon se publica al completar sus hijos. Cambia ordering y maxInFlight en el editor.' }}</p><button @click="tryExample('pokemon-v2-webhook')">{{ ui.replayV2 }}</button><pre aria-label="Ejemplo V2 con webhook">{{ pokemonV2WebhookExample }}</pre></article></div></section>
     <section v-else class="documentation"><h1>Abriendo playground…</h1></section>
   </main>
 </template>

@@ -29,6 +29,9 @@ func TestExampleDefaults(t *testing.T) {
 	if config.Executions.Timeout.Value() != 6*time.Hour || config.Cache.MaxTTL.Value() != 30*24*time.Hour {
 		t.Fatal("duration defaults incorrect")
 	}
+	if !config.UI.Enabled || config.UI.Language != "es" {
+		t.Fatalf("unexpected UI defaults: %+v", config.UI)
+	}
 	limits := config.DefinitionLimits()
 	if limits.MaxDefinitionDepth != 8 || limits.MaxRootCalls != 16 {
 		t.Fatal("definition limits do not reflect config")
@@ -36,6 +39,14 @@ func TestExampleDefaults(t *testing.T) {
 	limits.UpstreamAllowedOrigins[0] = "changed"
 	if config.Security.Egress.UpstreamAllowedOrigins[0] == "changed" {
 		t.Fatal("definition limits alias configuration")
+	}
+}
+
+func TestUILanguageEnglishIsAccepted(t *testing.T) {
+	raw := strings.Replace(string(example(t)), "language: es", "language: en", 1)
+	config, err := Parse([]byte(raw))
+	if err != nil || config.UI.Language != "en" {
+		t.Fatalf("english UI language: %+v %v", config.UI, err)
 	}
 }
 
@@ -83,6 +94,7 @@ func TestRejectInvalidConfiguration(t *testing.T) {
 		raw + "\nversion: 1\n",
 		strings.Replace(raw, "maxTTL: \"30d\"", "maxTTL: \"0d\"", 1),
 		strings.Replace(raw, "mode: local", "mode: null", 1),
+		strings.Replace(raw, "language: es", "language: fr", 1),
 	} {
 		if _, err := Parse([]byte(value)); err == nil {
 			t.Errorf("accepted invalid configuration: %s", value)

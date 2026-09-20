@@ -1,6 +1,9 @@
 import { initializeInputEditor } from "./input-editor.js";
 import { createV2Viewer } from "./v2-viewer.js";
 import { renderJSON } from "./json-viewer.js";
+import { locale, translateStatic } from "./i18n.js";
+
+translateStatic();
 
 const $ = (id) => document.getElementById(id);
 const elements = Object.fromEntries(
@@ -301,7 +304,7 @@ function addMeta(label, value) {
 function formatDate(value) {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString("es");
+  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString(locale);
 }
 function renderStatus(status) {
   currentStatus = status.status ?? "";

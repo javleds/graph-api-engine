@@ -47,6 +47,10 @@ func (s *Server) Handler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
+		if !s.uiEnabled() {
+			http.NotFound(w, r)
+			return
+		}
 		http.Redirect(w, r, "/playground", http.StatusSeeOther)
 	})
 	v2 := *s

@@ -10,6 +10,7 @@ Sustituir el playground abierto por una consola web autenticada, con login, docu
 - La sesión del playground dura ocho horas y se entrega únicamente en una cookie firmada, `HttpOnly` y `SameSite=Strict`. El navegador no recibe ni persiste un Bearer token.
 - `POST /playground/api/session`, `GET /playground/api/session` y `DELETE /playground/api/session` crean, consultan y cierran sesión.
 - `/playground`, `/docs` y `/examples` requieren sesión. La API pública continúa usando Bearer tokens y owners independientes.
+- `ui.enabled` controla todas las rutas de consola; con `false` responden 404 sin afectar API, workers, health ni métricas. `ui.language` acepta `es` o `en` y default `es`.
 - Los destinos permiten URLs exactas, `https://*.example.com` y `*`. El comodín de subdominio no incluye el apex. El esquema HTTP y los CIDRs privados siguen controlándose explícitamente.
 
 ## Interfaz

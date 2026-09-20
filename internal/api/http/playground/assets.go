@@ -1,6 +1,7 @@
 package playground
 
 import (
+	"bytes"
 	"embed"
 	"io/fs"
 	"mime"
@@ -11,14 +12,14 @@ import (
 //go:embed assets/*
 var assets embed.FS
 
-func Register(mux *http.ServeMux, guard func(http.ResponseWriter, *http.Request) bool) {
+func Register(mux *http.ServeMux, guard func(http.ResponseWriter, *http.Request) bool, language string) {
 	mux.HandleFunc("GET /playground/assets/{file}", func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("file")
 		contentType := "text/javascript; charset=utf-8"
 		switch name {
 		case "playground.css":
 			contentType = "text/css; charset=utf-8"
-		case "playground.js", "json-viewer.js", "input-editor.js", "v2-viewer.js":
+		case "playground.js", "json-viewer.js", "input-editor.js", "v2-viewer.js", "i18n.js":
 		default:
 			http.NotFound(w, r)
 			return
@@ -55,6 +56,7 @@ func Register(mux *http.ServeMux, guard func(http.ResponseWriter, *http.Request)
 		}
 		securityHeaders(w)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		body = bytes.Replace(body, []byte(`<html lang="es">`), []byte(`<html lang="`+language+`" data-ui-language="`+language+`">`), 1)
 		_, _ = w.Write(body)
 	}
 	mux.HandleFunc("GET /login", webPage)
@@ -74,10 +76,15 @@ func Register(mux *http.ServeMux, guard func(http.ResponseWriter, *http.Request)
 		if guard != nil && !guard(w, r) {
 			return
 		}
+		body, err := fs.ReadFile(assets, "assets/index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
 		securityHeaders(w)
-		body, _ := assets.ReadFile("assets/index.html")
+		body = bytes.Replace(body, []byte(`<html lang="es">`), []byte(`<html lang="`+language+`" data-ui-language="`+language+`">`), 1)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(body)
+		_, _ = w.Write(body)
 	})
 }
 

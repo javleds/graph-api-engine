@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 export function initializeInputEditor(
   validationURL = () => "/playground/api/validate",
 ) {
@@ -46,7 +48,7 @@ export function initializeInputEditor(
       return;
     }
     button.disabled = true;
-    show("Validando sintaxis, schema y referencias…", "pending");
+    show(t("validating"), "pending");
     try {
       const response = await fetch(validationURL(), {
         method: "POST",

@@ -21,6 +21,7 @@ type Config struct {
 	Cache         CacheConfig         `json:"cache"`
 	Webhooks      WebhooksConfig      `json:"webhooks"`
 	Security      SecurityConfig      `json:"security"`
+	UI            UIConfig            `json:"ui"`
 	Maintenance   MaintenanceConfig   `json:"maintenance"`
 	Shutdown      ShutdownConfig      `json:"shutdown"`
 	Observability ObservabilityConfig `json:"observability"`
@@ -29,6 +30,9 @@ type Config struct {
 func (c *Config) Validate() error {
 	if c.Version != 1 {
 		return fmt.Errorf("unsupported configuration version")
+	}
+	if c.UI.Language != "es" && c.UI.Language != "en" {
+		return fmt.Errorf("ui language must be es or en")
 	}
 	if c.Mode != "local" || c.Storage.Driver != "sqlite" || c.Cache.Driver != "sqlite" || c.Throttle.Driver != "local_pacing" || c.Deduplication.Driver != "local_singleflight" {
 		return &domain.ValidationError{Code: "UNSUPPORTED_DRIVER", Message: "unsupported service mode or driver"}

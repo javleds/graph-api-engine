@@ -1,5 +1,8 @@
 version: 1
 mode: local
+ui:
+  enabled: true
+  language: es
 http:
   address: "0.0.0.0:${APP_PORT}"
   publicBaseUrl: "${APP_URL}"

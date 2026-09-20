@@ -3,22 +3,25 @@ import { computed, ref } from 'vue';
 import MarkdownIt from 'markdown-it';
 import v1Guide from '../../docs/result-delivery-v1.md?raw';
 import v2Guide from '../../docs/result-delivery-v2.md?raw';
+import { messagesFor, uiLanguage } from './i18n';
 
 const version = ref<'v1' | 'v2'>('v1');
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: true });
+const language = uiLanguage();
+const ui = messagesFor(language);
 const content = computed(() => markdown.render(version.value === 'v1' ? v1Guide : v2Guide));
 </script>
 
 <template>
   <section class="result-delivery">
     <div class="result-delivery-intro">
-      <h2>Obtención de resultados</h2>
-      <p>V1 entrega el grafo al finalizar la ejecución. V2 entrega cada cadena completa a medida que termina: un objeto single con sus hijos, o cada elemento de una colección con todos sus descendientes. En ambas versiones puedes consultar por API; si incluyes un webhook, cambia qué notificaciones recibirás y cuándo.</p>
+      <h2>{{ ui.results }}</h2>
+      <p>{{ language === 'en' ? 'V1 delivers the graph when execution finishes. V2 delivers each complete chain as it finishes: a single object with its children, or each collection item with all descendants. Both versions remain available through the API; a webhook changes which notifications you receive and when.' : 'V1 entrega el grafo al finalizar la ejecución. V2 entrega cada cadena completa a medida que termina: un objeto single con sus hijos, o cada elemento de una colección con todos sus descendientes. En ambas versiones puedes consultar por API; si incluyes un webhook, cambia qué notificaciones recibirás y cuándo.' }}</p>
     </div>
     <fieldset class="version-selector">
-      <legend>Versión de la API</legend>
-      <label :class="{ selected: version === 'v1' }"><input v-model="version" type="radio" name="result-version" value="v1" aria-controls="result-version-content">V1 · Resultado final</label>
-      <label :class="{ selected: version === 'v2' }"><input v-model="version" type="radio" name="result-version" value="v2" aria-controls="result-version-content">V2 · Cadenas completas</label>
+      <legend>{{ language === 'en' ? 'API version' : 'Versión de la API' }}</legend>
+      <label :class="{ selected: version === 'v1' }"><input v-model="version" type="radio" name="result-version" value="v1" aria-controls="result-version-content">V1 · {{ language === 'en' ? 'Final result' : 'Resultado final' }}</label>
+      <label :class="{ selected: version === 'v2' }"><input v-model="version" type="radio" name="result-version" value="v2" aria-controls="result-version-content">V2 · {{ language === 'en' ? 'Complete chains' : 'Cadenas completas' }}</label>
     </fieldset>
     <article id="result-version-content" class="markdown result-delivery-content" :aria-label="`Obtención de resultados ${version.toUpperCase()}`" v-html="content"></article>
   </section>

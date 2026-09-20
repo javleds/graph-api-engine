@@ -8,7 +8,10 @@ import (
 )
 
 func (s *Server) registerPlayground(mux *http.ServeMux) {
-	playground.Register(mux, s.authorizeWebPage)
+	if !s.uiEnabled() {
+		return
+	}
+	playground.Register(mux, s.authorizeWebPage, s.uiLanguage())
 	mux.HandleFunc("POST /playground/api/webhook", s.playgroundWebhook)
 	s.registerPlaygroundSession(mux)
 	s.registerPlaygroundConfiguration(mux)
@@ -36,6 +39,15 @@ func (s *Server) registerPlayground(mux *http.ServeMux) {
 	v2.ExecutionBasePath = "/playground/api/v2/executions"
 	v2.registerV2(mux, protection)
 	mux.Handle("POST /playground/api/v2/validate", protection.Handler(http.HandlerFunc(v2.validateRequest)))
+}
+
+func (s *Server) uiEnabled() bool { return s.Configuration == nil || s.Configuration.UI.Enabled }
+
+func (s *Server) uiLanguage() string {
+	if s.Configuration == nil || s.Configuration.UI.Language == "" {
+		return "es"
+	}
+	return s.Configuration.UI.Language
 }
 
 // playgroundWebhook is a deliberately small local receiver used by the
