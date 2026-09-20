@@ -197,7 +197,7 @@ const requestSections: Array<{ title: string; fields: RequestField[] }> = [
     { path: 'webhook.auth', required: 'No', description: 'Autenticación para el destino webhook.', allowed: 'none, bearer, basic o header' },
     { path: 'webhook.payload', required: 'No', description: 'En V1 elige el contenido terminal. En V2 los eventos de nodo incluyen su resultado automáticamente.', allowed: 'V1: status o result. V2: sólo status. Default: status' },
     { path: 'webhook.ordering', required: 'No; sólo V2', description: 'Orden de admisión de webhooks: por finalización o posición original. No cambia la disponibilidad por API; con varias entregas no garantiza orden de recepción.', allowed: 'completion o source; default completion' },
-    { path: 'webhook.maxInFlight', required: 'No; sólo V2', description: 'Entregas pendientes de resolución simultáneamente. Con 1 espera confirmación 2xx o fallo definitivo; los reintentos conservan su lugar. Limitado por webhooks.maxConcurrent.', allowed: 'Entero ≥ 1; default 1' },
+    { path: 'webhook.maxInFlight', required: 'No; sólo V2', description: 'Entregas pendientes de resolución simultáneamente. Con 1 espera confirmación 2xx o fallo definitivo; con 0 no hay límite por ejecución. Los reintentos conservan su lugar. Siempre aplica webhooks.maxConcurrent global.', allowed: 'Entero ≥ 0; 0 ilimitado; default 1' },
   ] },
 ];
 const requestSchemaExample = JSON.stringify({

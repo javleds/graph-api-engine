@@ -99,6 +99,18 @@ func TestCompletionWindowAllowsConcurrentDeliveryAndOperatorCap(t *testing.T) {
 	claimOrdered(t, o, now, "")
 }
 
+func TestCompletionWindowZeroRemovesPerExecutionCap(t *testing.T) {
+	o, now := orderedOutbox(t, "completion", 0)
+	o.maxConcurrent = 1
+	for sequence := int64(1); sequence <= 3; sequence++ {
+		projectOrderedResult(t, o, addOrderedResult(t, o, now, sequence, 0, int(sequence-1)), false, 10)
+	}
+	claimOrdered(t, o, now, "node-1")
+	claimOrdered(t, o, now, "node-2")
+	// maxInFlight=0 removes the execution-level admission cap. The dispatcher
+	// still controls the actual number of simultaneous HTTP sends globally.
+}
+
 func TestSourceProjectionSkipsCompletionOrderWithoutCapacityDeadlock(t *testing.T) {
 	ctx := context.Background()
 	o, now := orderedOutbox(t, "source", 2)

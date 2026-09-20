@@ -11,7 +11,7 @@ const dueDeliverySQL = `SELECT
  LEFT JOIN v2_results r ON r.event_id=d.event_id
  WHERE d.status IN ('pending','retrying') AND d.next_attempt_at<=? AND d.deadline_at>?
  AND (e.webhook_ordering='' OR (
-   (d.status='retrying' OR (
+   (e.webhook_max_in_flight=0 OR d.status='retrying' OR (
      SELECT count(*) FROM webhook_deliveries occupied
      WHERE occupied.execution_id=d.execution_id AND occupied.status IN ('retrying','delivering')
    ) < CASE WHEN ?>0 THEN min(e.webhook_max_in_flight,?) ELSE e.webhook_max_in_flight END)

@@ -50,8 +50,9 @@ Estos campos son opcionales y exclusivos de V2. Sus defaults se aplican a ejecuc
 | `ordering: "completion"`, `maxInFlight: 4` | Hasta cuatro entregas pendientes de resolución, seleccionadas por orden de finalización. |
 | `ordering: "source"`, `maxInFlight: 1` | Espera las posiciones anteriores del request y colección; entrega una a la vez. |
 | `ordering: "source"`, `maxInFlight: 4` | Admite hasta cuatro entregas en orden original, sin garantizar orden de recepción ni procesamiento remoto. |
+| `ordering: "completion"`, `maxInFlight: 0` | Sin límite por ejecución: cada cadena terminada puede entrar a la cola; `webhooks.maxConcurrent` sigue limitando el servicio. |
 
-`maxInFlight` debe ser un entero positivo. El límite efectivo no supera `webhooks.maxConcurrent` del servicio. Cualquier respuesta **`2xx`**, incluido `202`, confirma recepción; no prueba que el receptor haya terminado su trabajo interno. Mientras una entrega se reintenta, conserva su lugar en la ventana. Al agotar intentos, vencer o fallar definitivamente, permite avanzar a las siguientes.
+`maxInFlight` debe ser un entero ≥ 0. El valor `0` significa sin límite por ejecución; el límite efectivo del proceso nunca supera `webhooks.maxConcurrent`. Cualquier respuesta **`2xx`**, incluido `202`, confirma recepción; no prueba que el receptor haya terminado su trabajo interno. Mientras una entrega se reintenta, conserva su lugar en la ventana. Al agotar intentos, vencer o fallar definitivamente, permite avanzar a las siguientes.
 
 El orden de webhook **no cambia el paralelismo del engine ni la disponibilidad por API**. Si Bulbasaur tarda 20 segundos y Charizard 2, Charizard aparece por API a los 2; con `source`, su webhook espera a Bulbasaur. La espera es durable, no un grafo acumulado en RAM, pero consume almacenamiento y plazo de entrega.
 

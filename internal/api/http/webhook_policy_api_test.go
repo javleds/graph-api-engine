@@ -14,6 +14,7 @@ func TestWebhookPolicyVersionBoundary(t *testing.T) {
 	for _, test := range []webhookPolicyAPICase{
 		{"", "completion", 1},
 		{`,"ordering":"source","maxInFlight":4`, "source", 4},
+		{`,"maxInFlight":0`, "completion", 0},
 	} {
 		body := append(append([]byte{}, v2Request[:len(v2Request)-1]...), []byte(`,"webhook":{"url":"https://example.com/hook"`+test.fields+`}}`)...)
 		response := request(t, h, "POST", "/v2/executions", body, "", "owner")

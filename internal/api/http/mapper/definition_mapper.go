@@ -28,7 +28,7 @@ func Compile(input dto.CreateExecutionRequest, limits application.ValidationLimi
 		result.Roots = append(result.Roots, compiled)
 	}
 	if w := input.Webhook; w != nil {
-		result.Webhook = &domain.Webhook{URL: w.URL, Method: w.Method, Headers: mapHeaders(w.Headers), Auth: mapAuth(w.Auth), Payload: w.Payload, Ordering: w.Ordering, MaxInFlight: w.MaxInFlight}
+		result.Webhook = &domain.Webhook{URL: w.URL, Method: w.Method, Headers: mapHeaders(w.Headers), Auth: mapAuth(w.Auth), Payload: w.Payload, Ordering: w.Ordering, MaxInFlight: w.MaxInFlight, MaxInFlightSet: w.MaxInFlightSet}
 	}
 	return application.Compile(result, limits)
 }

@@ -43,6 +43,7 @@ func (v *Validator) Parse(data []byte, maxDepth int) (dto.CreateExecutionRequest
 	if err != nil {
 		return result, &domain.ValidationError{Code: "INVALID_JSON", Message: "invalid JSON document"}
 	}
+	object, _ := value.(map[string]any)
 	if object, ok := value.(map[string]any); ok {
 		if webhook, ok := object["webhook"].(map[string]any); ok && v.apiVersion == 2 && webhook["payload"] == "result" {
 			return result, domain.Invalid("/webhook/payload", "V2 webhooks accept only status payloads.")
@@ -64,10 +65,13 @@ func (v *Validator) Parse(data []byte, maxDepth int) (dto.CreateExecutionRequest
 	}
 	// Defaults belong to new V2 requests, never to legacy persisted snapshots.
 	if v.apiVersion == 2 && result.Webhook != nil {
+		if webhook, ok := object["webhook"].(map[string]any); ok {
+			_, result.Webhook.MaxInFlightSet = webhook["maxInFlight"]
+		}
 		if result.Webhook.Ordering == "" {
 			result.Webhook.Ordering = "completion"
 		}
-		if result.Webhook.MaxInFlight == 0 {
+		if !result.Webhook.MaxInFlightSet && result.Webhook.MaxInFlight == 0 {
 			result.Webhook.MaxInFlight = 1
 		}
 	}

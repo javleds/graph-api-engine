@@ -8,7 +8,7 @@ V2 recorre una pila secuencial y reconstruye cadenas mediante rangos DFS contigu
 
 - Nuevas ejecuciones concurrentes; ejecuciones anteriores mantienen su formato y comportamiento.
 - Resultados API por finalización, conservando índices originales.
-- Webhook V2: `ordering: completion|source` (default completion), `maxInFlight` entero positivo (default 1), limitado por concurrencia operativa global.
+- Webhook V2: `ordering: completion|source` (default completion), `maxInFlight` entero ≥ 0 (default 1); `0` elimina el límite por ejecución, sin quitar `webhooks.maxConcurrent` global.
 - Confirmación mediante cualquier 2xx. La ventana incluye entregas en reintento; éxito, fallo definitivo o vencimiento liberan su lugar. Terminal después de resolver nodos.
 - Sin webhook no hay esperas de entrega. V1 no cambia ni acepta las nuevas opciones.
 

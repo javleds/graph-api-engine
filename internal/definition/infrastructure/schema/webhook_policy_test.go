@@ -17,6 +17,7 @@ func TestV2WebhookPolicyDefaultsAndCompilation(t *testing.T) {
 		{"source", `,"ordering":"source"`, "source", 1},
 		{"concurrent", `,"maxInFlight":4`, "completion", 4},
 		{"source concurrent", `,"ordering":"source","maxInFlight":4`, "source", 4},
+		{"unlimited", `,"maxInFlight":0`, "completion", 0},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			input := validInput[:len(validInput)-1] + `,"webhook":{"url":"https://receiver.example.com"` + test.fields + `}}`
@@ -57,7 +58,7 @@ func TestV2WebhookPolicyDefaultsAndCompilation(t *testing.T) {
 func TestV2WebhookPolicyRejectsInvalidValues(t *testing.T) {
 	for _, field := range []string{
 		`"ordering":""`, `"ordering":"random"`, `"ordering":null`, `"ordering":1`,
-		`"maxInFlight":0`, `"maxInFlight":-1`, `"maxInFlight":1.5`, `"maxInFlight":"2"`,
+		`"maxInFlight":-1`, `"maxInFlight":1.5`, `"maxInFlight":"2"`,
 		`"maxInFlight":null`, `"maxInFlight":99999999999999999999999999999999`,
 	} {
 		input := validInput[:len(validInput)-1] + `,"webhook":{"url":"https://receiver.example.com",` + field + `}}`

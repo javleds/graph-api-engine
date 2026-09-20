@@ -13,6 +13,7 @@ func FingerprintDefinition(definition domain.CompiledDefinition, apiVersion int)
 		copy := *webhook
 		copy.Ordering = ""
 		copy.MaxInFlight = 0
+		copy.MaxInFlightSet = false
 		definition.Webhook = &copy
 	}
 	return json.Marshal(definition)

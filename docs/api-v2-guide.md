@@ -114,7 +114,7 @@ La política opcional del webhook se configura en el body:
 }
 ```
 
-`ordering` acepta `completion` (default, por finalización) o `source` (posición original de raíces y elementos). `maxInFlight` es un entero positivo, default `1`, limitado operativamente por `webhooks.maxConcurrent`. Con uno, esperar respuesta `2xx` o fallo definitivo antes de admitir la siguiente entrega; con un valor mayor, permitir varias pendientes de resolución. Un reintento conserva su lugar en esa ventana. `source` con varias entregas ordena la admisión, no la recepción remota. Un `202` confirma recepción, no el fin del procesamiento del receptor. Estos campos se rechazan en V1.
+`ordering` acepta `completion` (default, por finalización) o `source` (posición original de raíces y elementos). `maxInFlight` acepta enteros desde `0`, default `1`, limitado operativamente por `webhooks.maxConcurrent`. Con uno, esperar respuesta `2xx` o fallo definitivo antes de admitir la siguiente entrega; con un valor mayor, permitir varias pendientes de resolución; con `0`, quitar el límite por ejecución. El límite global del servicio siempre permanece activo. Un reintento conserva su lugar en la ventana. `source` con varias entregas ordena la admisión, no la recepción remota. Un `202` confirma recepción, no el fin del procesamiento del receptor. Estos campos se rechazan en V1.
 
 Ninguna política retrasa el procesamiento del engine ni la publicación por API. Esperar una cadena lenta sólo retrasa los webhooks dependientes de su orden. Las esperas se persisten y consumen presupuesto/plazo de entrega.
 
