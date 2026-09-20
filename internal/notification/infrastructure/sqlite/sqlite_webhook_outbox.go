@@ -18,10 +18,15 @@ type SQLiteWebhookOutbox struct {
 	protector     securityports.SecretProtector
 	claimMu       sync.Mutex
 	lastExecution string
+	maxConcurrent int
 }
 
-func NewSQLiteWebhookOutbox(db *sql.DB, protector securityports.SecretProtector) *SQLiteWebhookOutbox {
-	return &SQLiteWebhookOutbox{db: db, protector: protector}
+func NewSQLiteWebhookOutbox(db *sql.DB, protector securityports.SecretProtector, maxConcurrent ...int) *SQLiteWebhookOutbox {
+	o := &SQLiteWebhookOutbox{db: db, protector: protector}
+	if len(maxConcurrent) > 0 {
+		o.maxConcurrent = maxConcurrent[0]
+	}
+	return o
 }
 
 func (o *SQLiteWebhookOutbox) Claim(ctx context.Context, instance string, now time.Time, lease time.Duration) (*domain.WebhookDelivery, error) {
@@ -38,7 +43,7 @@ func (o *SQLiteWebhookOutbox) Claim(ctx context.Context, instance string, now ti
 	if _, err := tx.ExecContext(ctx, `UPDATE webhook_deliveries SET last_error_json='{"code":"DELIVERY_DEADLINE_EXCEEDED","message":"Se agotó el plazo de entrega."}',status='failed',lease_owner=NULL,lease_expires_at=NULL,version=version+1 WHERE status IN ('pending','retrying') AND deadline_at<=?`, now.UnixMilli()); err != nil {
 		return nil, err
 	}
-	d, err := loadDue(ctx, tx, now, o.lastExecution)
+	d, err := loadDue(ctx, tx, now, o.lastExecution, o.maxConcurrent)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, tx.Commit()
 	}
@@ -136,10 +141,10 @@ func (o *SQLiteWebhookOutbox) open(ctx context.Context, table, owner, id string,
 	return o.protector.Open(ctx, string(purpose), blob)
 }
 
-func loadDue(ctx context.Context, tx *sql.Tx, now time.Time, afterExecution string) (domain.WebhookDelivery, error) {
+func loadDue(ctx context.Context, tx *sql.Tx, now time.Time, afterExecution string, maxConcurrent int) (domain.WebhookDelivery, error) {
 	var d domain.WebhookDelivery
 	var next, deadline int64
-	err := tx.QueryRowContext(ctx, `SELECT id,event_id,execution_id,owner_id,event_type,target_blob,payload_blob,status,attempts,version,next_attempt_at,deadline_at FROM webhook_deliveries WHERE status IN ('pending','retrying') AND next_attempt_at<=? AND deadline_at>? ORDER BY CASE WHEN execution_id>? THEN 0 ELSE 1 END,execution_id,next_attempt_at,id LIMIT 1`, now.UnixMilli(), now.UnixMilli(), afterExecution).Scan(&d.ID, &d.EventID, &d.ExecutionID, &d.OwnerID, &d.EventType, &d.Target, &d.Payload, &d.Status, &d.Attempts, &d.Version, &next, &deadline)
+	err := tx.QueryRowContext(ctx, dueDeliverySQL, now.UnixMilli(), now.UnixMilli(), maxConcurrent, maxConcurrent, afterExecution).Scan(&d.ID, &d.EventID, &d.ExecutionID, &d.OwnerID, &d.EventType, &d.Target, &d.Payload, &d.Status, &d.Attempts, &d.Version, &next, &deadline)
 	d.NextAttemptAt = time.UnixMilli(next).UTC()
 	d.DeadlineAt = time.UnixMilli(deadline).UTC()
 	return d, err

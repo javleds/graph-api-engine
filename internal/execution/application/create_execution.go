@@ -40,7 +40,11 @@ func (c *CreateExecution) Execute(ctx context.Context, command CreateExecutionCo
 	if version == 2 {
 		purpose = ":v2"
 	}
-	fingerprint := c.identity("request"+purpose, string(command.Definition))
+	identityDefinition := command.FingerprintDefinition
+	if len(identityDefinition) == 0 {
+		identityDefinition = command.Definition
+	}
+	fingerprint := c.identity("request"+purpose, string(identityDefinition))
 	key := ""
 	if command.IdempotencyKey != "" {
 		key = c.identity("idempotency"+purpose, command.OwnerID+"\x00"+command.IdempotencyKey)

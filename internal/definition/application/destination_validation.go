@@ -76,6 +76,12 @@ func reservedHeader(name string, webhook bool) bool {
 	return webhook && (name == "content-type" || name == "x-engine-event-id" || name == "x-engine-timestamp" || name == "x-engine-signature")
 }
 func validateWebhook(w *domain.Webhook, limits ValidationLimits) error {
+	if w.Ordering != "" && w.Ordering != "completion" && w.Ordering != "source" {
+		return domain.Invalid("/webhook/ordering", "ordering must be completion or source")
+	}
+	if w.MaxInFlight < 0 || (w.Ordering != "" && w.MaxInFlight == 0) || (w.Ordering == "" && w.MaxInFlight != 0) {
+		return domain.Invalid("/webhook/maxInFlight", "delivery policy requires a positive maxInFlight and ordering")
+	}
 	if err := validateURL(w.URL, false, limits.AllowHTTPForDevelopment, limits.WebhookAllowedOrigins); err != nil {
 		return err
 	}

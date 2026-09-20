@@ -6,5 +6,8 @@ type CreateExecutionCommand struct {
 	OwnerID        string
 	IdempotencyKey string
 	Definition     []byte
-	WebhookEnabled bool
+	// FingerprintDefinition preserves canonical request identity across snapshot upgrades.
+	// When omitted, Definition is used. It is never persisted as the execution snapshot.
+	FingerprintDefinition []byte
+	WebhookEnabled        bool
 }

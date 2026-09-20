@@ -28,7 +28,7 @@ func (s *Server) validateRequest(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	input, err := schema.Parse(body, s.MaxJSONDepth)
+	input, err := schema.ParseVersion(body, s.MaxJSONDepth, s.apiVersion())
 	if err != nil {
 		presentError(w, err, "")
 		return

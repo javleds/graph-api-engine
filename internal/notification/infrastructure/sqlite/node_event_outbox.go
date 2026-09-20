@@ -12,7 +12,12 @@ import (
 )
 
 func (o *SQLiteWebhookOutbox) PendingNodeExecutions(ctx context.Context, after string, limit int) ([]domain.NodeEventCursor, error) {
-	rows, err := o.db.QueryContext(ctx, `SELECT s.execution_id,e.owner_id,s.webhook_cursor FROM v2_state s JOIN executions e ON e.id=s.execution_id WHERE s.results_enabled=1 AND e.api_version=2 AND e.webhook_enabled=1 AND s.webhook_cursor<s.last_result_sequence AND s.execution_id>? ORDER BY s.execution_id LIMIT ?`, after, limit)
+	rows, err := o.db.QueryContext(ctx, `SELECT s.execution_id,e.owner_id,s.webhook_cursor,e.webhook_ordering='source' FROM v2_state s JOIN executions e ON e.id=s.execution_id WHERE s.results_enabled=1 AND e.api_version=2 AND e.webhook_enabled=1 AND s.webhook_cursor<s.last_result_sequence AND s.execution_id>?
+ AND (e.webhook_ordering<>'source' OR EXISTS (
+ SELECT 1 FROM v2_results r WHERE r.execution_id=s.execution_id
+ AND (s.terminal=1 OR r.source_root<s.source_root OR (r.source_root=s.source_root AND r.source_index<=s.source_index))
+ AND NOT EXISTS (SELECT 1 FROM webhook_deliveries d WHERE d.event_id=r.event_id)))
+ ORDER BY s.execution_id LIMIT ?`, after, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -20,7 +25,7 @@ func (o *SQLiteWebhookOutbox) PendingNodeExecutions(ctx context.Context, after s
 	var cursors []domain.NodeEventCursor
 	for rows.Next() {
 		var c domain.NodeEventCursor
-		if err := rows.Scan(&c.ExecutionID, &c.OwnerID, &c.After); err != nil {
+		if err := rows.Scan(&c.ExecutionID, &c.OwnerID, &c.After, &c.Source); err != nil {
 			return nil, err
 		}
 		cursors = append(cursors, c)
@@ -49,11 +54,21 @@ func (o *SQLiteWebhookOutbox) SaveNodeDelivery(ctx context.Context, cursor domai
 	if err = tx.QueryRowContext(ctx, `SELECT webhook_cursor FROM v2_state WHERE execution_id=?`, cursor.ExecutionID).Scan(&current); err != nil {
 		return false, err
 	}
-	if current >= d.Sequence {
-		return true, nil
-	}
-	if current != cursor.After {
-		return false, execution.ErrVersionConflict
+	if cursor.Source {
+		var exists bool
+		if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM webhook_deliveries WHERE event_id=?)`, d.EventID).Scan(&exists); err != nil {
+			return false, err
+		}
+		if exists {
+			return true, nil
+		}
+	} else {
+		if current >= d.Sequence {
+			return true, nil
+		}
+		if current != cursor.After {
+			return false, execution.ErrVersionConflict
+		}
 	}
 	status := "pending"
 	var failure any
@@ -65,7 +80,7 @@ func (o *SQLiteWebhookOutbox) SaveNodeDelivery(ctx context.Context, cursor domai
 		failure = string(raw)
 	} else {
 		var pending int
-		if err = tx.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM executions WHERE webhook_enabled=1 AND status IN ('pending','running'))+(SELECT count(*) FROM webhook_deliveries WHERE status IN ('pending','retrying','delivering'))`).Scan(&pending); err != nil {
+		if err = tx.QueryRowContext(ctx, nodeAdmissionOccupancySQL).Scan(&pending); err != nil {
 			return false, err
 		}
 		if maxPending > 0 && pending >= maxPending {
@@ -83,13 +98,34 @@ func (o *SQLiteWebhookOutbox) SaveNodeDelivery(ctx context.Context, cursor domai
 	if err != nil {
 		return false, err
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE v2_state SET webhook_cursor=? WHERE execution_id=? AND webhook_cursor=?`, d.Sequence, d.ExecutionID, cursor.After); err != nil {
+	// In source mode the cursor counts projected events rather than identifying a
+	// completion-order high watermark. This keeps pending summaries exact.
+	next := d.Sequence
+	if cursor.Source {
+		next = current + 1
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE v2_state SET webhook_cursor=? WHERE execution_id=? AND webhook_cursor=?`, next, d.ExecutionID, current); err != nil {
 		return false, err
 	}
 	if err = tx.Commit(); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+func (o *SQLiteWebhookOutbox) NextSourceEvent(ctx context.Context, cursor domain.NodeEventCursor) (int64, error) {
+	var sequence int64
+	err := o.db.QueryRowContext(ctx, `SELECT r.sequence FROM v2_results r
+ JOIN v2_state s ON s.execution_id=r.execution_id
+ JOIN executions e ON e.id=r.execution_id
+ WHERE r.execution_id=? AND e.owner_id=? AND e.webhook_ordering='source'
+ AND (s.terminal=1 OR r.source_root<s.source_root OR (r.source_root=s.source_root AND r.source_index<=s.source_index))
+ AND NOT EXISTS (SELECT 1 FROM webhook_deliveries d WHERE d.event_id=r.event_id)
+ ORDER BY r.source_root,r.source_index,r.sequence LIMIT 1`, cursor.ExecutionID, cursor.OwnerID).Scan(&sequence)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return sequence, err
 }
 
 func (o *SQLiteWebhookOutbox) seal(ctx context.Context, table, owner, id string, data []byte) ([]byte, error) {

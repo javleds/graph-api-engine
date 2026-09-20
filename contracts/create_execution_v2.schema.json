@@ -518,6 +518,15 @@
         "auth": {
           "$ref": "#/$defs/webhookAuthentication"
         },
+        "ordering": {
+          "enum": ["completion", "source"],
+          "default": "completion"
+        },
+        "maxInFlight": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
         "payload": {
           "enum": [
             "status"

@@ -81,6 +81,17 @@ func (s *NodeWebhookSubscriber) ProjectOnce(ctx context.Context) error {
 }
 
 func (s *NodeWebhookSubscriber) projectExecution(ctx context.Context, cursor domain.NodeEventCursor, now time.Time) (bool, error) {
+	if cursor.Source {
+		outbox, ok := s.Outbox.(ports.SourceEventOutbox)
+		if !ok {
+			return false, errors.New("source ordering requires source event outbox")
+		}
+		sequence, err := outbox.NextSourceEvent(ctx, cursor)
+		if err != nil || sequence == 0 {
+			return false, err
+		}
+		cursor.After = sequence - 1
+	}
 	// Expired events still need a failed delivery record; never reconstruct their data.
 	page, err := s.Results.ReadV2Results(ctx, cursor.OwnerID, cursor.ExecutionID, cursor.After, 0, 1, time.Time{})
 	if err != nil {

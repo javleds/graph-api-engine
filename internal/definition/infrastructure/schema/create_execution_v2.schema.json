@@ -1,0 +1,542 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:api-engine:contract:create-execution:v2",
+  "title": "CreateExecutionInputV2",
+  "description": "Request de /v2/executions. El lenguaje definition.version sigue siendo 1. Webhook s\u00f3lo status. Requiere validaci\u00f3n sem\u00e1ntica adicional.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "definition": {
+      "$ref": "#/$defs/definition"
+    },
+    "webhook": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/webhook"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "definition"
+  ],
+  "$defs": {
+    "duration": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*(ms|s|m|h|d)$",
+      "maxLength": 24
+    },
+    "headers": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 16384,
+        "pattern": "^[^\\r\\n]*$"
+      }
+    },
+    "upstreamAuthentication": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "bearer"
+            },
+            "token": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "required": [
+            "type",
+            "token"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "basic"
+            },
+            "username": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "password": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "required": [
+            "type",
+            "username",
+            "password"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "header"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "value"
+          ]
+        }
+      ]
+    },
+    "webhookAuthentication": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "bearer"
+            },
+            "token": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "required": [
+            "type",
+            "token"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "basic"
+            },
+            "username": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "password": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "required": [
+            "type",
+            "username",
+            "password"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "header"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "hmac"
+            },
+            "secret": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "required": [
+            "type",
+            "secret"
+          ]
+        }
+      ]
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "per": {
+          "$ref": "#/$defs/duration"
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "dependentRequired": {
+        "requests": [
+          "per"
+        ],
+        "per": [
+          "requests"
+        ]
+      },
+      "anyOf": [
+        {
+          "required": [
+            "requests"
+          ]
+        },
+        {
+          "required": [
+            "concurrency"
+          ]
+        }
+      ]
+    },
+    "cache": {
+      "oneOf": [
+        {
+          "const": false
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ttl": {
+              "$ref": "#/$defs/duration"
+            }
+          },
+          "required": [
+            "ttl"
+          ]
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "GET"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192,
+          "pattern": "^/[^?#]*$"
+        },
+        "query": {
+          "type": "object",
+          "maxProperties": 64,
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "headers": {
+          "$ref": "#/$defs/headers"
+        }
+      },
+      "required": [
+        "method",
+        "path"
+      ]
+    },
+    "pagination": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "pageSize": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1
+        },
+        "pages": {
+          "oneOf": [
+            {
+              "const": "all"
+            },
+            {
+              "type": "integer",
+              "minimum": 1
+            }
+          ],
+          "default": "all"
+        }
+      },
+      "required": [
+        "page"
+      ]
+    },
+    "call": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "not": {
+            "const": "parent"
+          }
+        },
+        "type": {
+          "enum": [
+            "single",
+            "collection"
+          ]
+        },
+        "select": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^[^.\\[\\]*$]+(\\.[^.\\[\\]*$]+)*$"
+            }
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/request"
+        },
+        "pagination": {
+          "$ref": "#/$defs/pagination"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/call"
+          }
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        },
+        "cache": {
+          "$ref": "#/$defs/cache"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "request"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "pagination"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "collection"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseUrl": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "auth": {
+          "$ref": "#/$defs/upstreamAuthentication"
+        },
+        "headers": {
+          "$ref": "#/$defs/headers"
+        },
+        "limits": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/limits"
+            },
+            {
+              "required": [
+                "requests",
+                "per"
+              ]
+            }
+          ]
+        },
+        "cache": {
+          "$ref": "#/$defs/cache"
+        }
+      },
+      "required": [
+        "baseUrl",
+        "limits"
+      ]
+    },
+    "definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "api": {
+          "$ref": "#/$defs/api"
+        },
+        "calls": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/call"
+          }
+        }
+      },
+      "required": [
+        "version",
+        "api",
+        "calls"
+      ]
+    },
+    "webhook": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "method": {
+          "enum": [
+            "POST",
+            "PUT",
+            "PATCH"
+          ],
+          "default": "POST"
+        },
+        "headers": {
+          "$ref": "#/$defs/headers"
+        },
+        "auth": {
+          "$ref": "#/$defs/webhookAuthentication"
+        },
+        "ordering": {
+          "enum": ["completion", "source"],
+          "default": "completion"
+        },
+        "maxInFlight": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "payload": {
+          "enum": [
+            "status"
+          ],
+          "default": "status"
+        }
+      },
+      "required": [
+        "url"
+      ]
+    }
+  }
+}

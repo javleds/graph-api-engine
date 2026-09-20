@@ -91,7 +91,7 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 	if err = a.Store.RecoverV2(ctx); err != nil {
 		return nil, err
 	}
-	outbox := notificationsql.NewSQLiteWebhookOutbox(a.EngineDB, protector)
+	outbox := notificationsql.NewSQLiteWebhookOutbox(a.EngineDB, protector, cfg.Webhooks.MaxConcurrent)
 	a.NodeNotifications = &notificationapp.NodeWebhookSubscriber{
 		Outbox: outbox, Store: a.Store, Results: a.Store, Builder: builder,
 		MaxPending: cfg.Webhooks.MaxPendingDeliveries, MaxStoredBytes: cfg.Executions.V2.MaxStoredBytes,

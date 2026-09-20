@@ -38,7 +38,7 @@ func (s *Server) createExecution(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	input, err := schema.Parse(body, s.MaxJSONDepth)
+	input, err := schema.ParseVersion(body, s.MaxJSONDepth, s.apiVersion())
 	if err != nil {
 		presentError(w, err, "")
 		return
@@ -68,7 +68,12 @@ func (s *Server) createExecution(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "INTERNAL_ERROR", "")
 		return
 	}
-	result, err := s.Create.Execute(r.Context(), application.CreateExecutionCommand{APIVersion: s.apiVersion(), OwnerID: principal.OwnerID, IdempotencyKey: key, Definition: snapshot, WebhookEnabled: compiled.Webhook != nil})
+	identityDefinition, err := mapper.FingerprintDefinition(*compiled, s.apiVersion())
+	if err != nil {
+		writeError(w, 500, "INTERNAL_ERROR", "")
+		return
+	}
+	result, err := s.Create.Execute(r.Context(), application.CreateExecutionCommand{APIVersion: s.apiVersion(), OwnerID: principal.OwnerID, IdempotencyKey: key, Definition: snapshot, FingerprintDefinition: identityDefinition, WebhookEnabled: compiled.Webhook != nil})
 	if err != nil {
 		presentError(w, err, string(result.Execution.ID))
 		return
