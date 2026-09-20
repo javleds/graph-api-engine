@@ -28,6 +28,8 @@ const elements = Object.fromEntries(
     "debug",
   ].map((id) => [id, $(id)]),
 );
+$("execution-id").placeholder = t("executionId2");
+$("execution-meta").dataset.empty = t("executionWillAppear2");
 const version = () => $("execution-version").value;
 const apiBase = () =>
   version() === "2"
@@ -40,36 +42,26 @@ initializeInputEditor(() =>
 );
 const v2Viewer = createV2Viewer($("v2-output"));
 const labels = {
-  pending: "◷ Pendiente",
-  running: "◷ En ejecución",
-  completed: "✓ Completado",
-  completed_with_errors: "△ Completado con errores",
-  failed: "× Fallido",
+  pending: `◷ ${t("pending")}`,
+  running: `◷ ${t("running")}`,
+  completed: `✓ ${t("completed")}`,
+  completed_with_errors: `△ ${t("completedWithErrors")}`,
+  failed: `× ${t("failed")}`,
 };
 const counterLabels = {
-  successfulRootCalls: "raíces completas",
-  partialRootCalls: "raíces parciales",
-  failedRootCalls: "raíces fallidas",
-  logicalRequests: "requests lógicos",
-  httpAttempts: "intentos HTTP",
-  cacheHits: "aciertos de caché",
-  coalescedRequests: "requests compartidos",
-  retries: "reintentos",
-  completedRootItems: "items completos",
-  nodeFailures: "errores de nodos",
-  skippedSubtrees: "subárboles omitidos",
+  successfulRootCalls: t("completeRoots"), partialRootCalls: t("partialRoots"), failedRootCalls: t("failedRoots"), logicalRequests: t("logicalRequests"), httpAttempts: t("httpAttempts"), cacheHits: t("cacheHits"), coalescedRequests: t("coalescedRequests"), retries: t("retries"), completedRootItems: t("completeItems"), nodeFailures: t("nodeErrors"), skippedSubtrees: t("skippedSubtrees"),
 };
 const counterGroups = [
   {
-    title: "Raíces y subárboles",
+    title: t("rootsAndSubtrees"),
     keys: ["successfulRootCalls", "partialRootCalls", "failedRootCalls", "skippedSubtrees"],
   },
   {
-    title: "Tráfico y HTTP",
+    title: t("trafficAndHttp"),
     keys: ["logicalRequests", "httpAttempts", "coalescedRequests", "retries"],
   },
   {
-    title: "Rendimiento y nodos",
+    title: t("performanceAndNodes"),
     keys: ["cacheHits", "completedRootItems", "nodeFailures"],
   },
 ];
@@ -101,7 +93,7 @@ const demoWebhook = () => ({
 const v1WebhookExample = { ...pokemonExample, webhook: { ...demoWebhook(), payload: "status" } };
 const v2WebhookExample = { ...pokemonExample, webhook: { ...demoWebhook(), ordering: "completion", maxInFlight: 0 } };
 const examples = {
-  basic: { version: "1", request: example, message: "Ejemplo básico cargado. Sustituye example.com por un proveedor permitido que devuelva JSON." },
+  basic: { version: "1", request: example, message: t("exampleBasicLoaded") },
   pokemon: { version: "1", request: pokemonExample, message: "Ejemplo PokéAPI cargado." },
   "pokemon-v1-webhook": { version: "1", request: v1WebhookExample, message: "Ejemplo V1 con webhook local cargado. El webhook sólo confirma la finalización de la ejecución." },
   "pokemon-v2-webhook": { version: "2", request: v2WebhookExample, message: "Ejemplo V2 con webhook local cargado. Prueba ordering y maxInFlight; cada cadena completa genera su evento." },
@@ -148,7 +140,7 @@ function updateCancelButton() {
     cancelling || !currentID || !["pending", "running"].includes(currentStatus);
   elements["cancel-execution"].textContent = cancelling
     ? "Abortando ejecución…"
-    : "Abortar ejecución";
+    : t("abortExecution");
 }
 function beginSession() {
   generation += 1;
@@ -175,8 +167,7 @@ function resetResponse() {
   elements["response-raw"].hidden = true;
   elements["response-empty"].hidden = false;
   elements.copy.disabled = true;
-  elements["response-label"].textContent =
-    "El resultado aparecerá cuando termine el job.";
+  elements["response-label"].textContent = t("resultWillAppear");
 }
 function focusExecutionOverview() {
   document.querySelector(".hero-row").scrollIntoView({
@@ -315,19 +306,19 @@ function renderStatus(status) {
   updateCancelButton();
   elements.status.dataset.status = status.status ?? "";
   elements["execution-meta"].replaceChildren();
-  addMeta("ID de ejecución", currentID);
-  addMeta("Creación", formatDate(status.createdAt));
-  addMeta("Inicio", formatDate(status.startedAt));
-  addMeta("Fin", formatDate(status.finishedAt));
+  addMeta(t("executionId2"), currentID);
+  addMeta(t("created"), formatDate(status.createdAt));
+  addMeta(t("started"), formatDate(status.startedAt));
+  addMeta(t("finished"), formatDate(status.finishedAt));
   const start = Date.parse(status.startedAt ?? status.createdAt);
   const end = status.finishedAt ? Date.parse(status.finishedAt) : Date.now();
   addMeta(
-    "Tiempo transcurrido",
+    t("elapsed"),
     Number.isFinite(start) && Number.isFinite(end)
       ? `${Math.max(0, (end - start) / 1000).toFixed(1)} s`
       : "—",
   );
-  addMeta("Última actualización", new Date().toLocaleTimeString("es"));
+  addMeta(t("lastUpdated"), new Date().toLocaleTimeString(locale));
   renderProgress(status.progress ?? {});
   renderWebhook(status);
 }
@@ -394,14 +385,14 @@ function fail(error, session) {
     elements.status.textContent = "× Sin ejecución confirmada";
     elements.status.dataset.status = "failed";
   }
-  setTracking(false, "Seguimiento pausado");
+  setTracking(false, t("trackingPaused"));
   message(error.message);
 }
 async function poll(session, loadResult = true) {
   try {
     const raw = await request(
       "status",
-      "Último estado",
+      t("lastStatus"),
       `${apiBase()}/${encodeURIComponent(currentID)}`,
       {},
       session,
@@ -431,8 +422,8 @@ async function poll(session, loadResult = true) {
         tracking,
         terminal && !more
           ? pendingNotifications
-            ? "Ejecución terminada · notificaciones pendientes"
-            : "Ejecución terminada"
+            ? `${t("executionFinished")} · ${t("pendingNotifications")}`
+            : t("executionFinished")
           : status.v2?.resultsEnabled
             ? "Esperando cadenas completas…"
             : "Recibiendo fragmentos…",
@@ -445,10 +436,10 @@ async function poll(session, loadResult = true) {
       displayResponse(
         raw,
         status.error?.code === "EXECUTION_CANCELLED"
-          ? "Ejecución cancelada · respuesta terminal de estado"
-          : "Ejecución fallida · respuesta terminal de estado",
+          ? `${t("cancelled")} · ${t("terminalStatusResponse")}`
+          : `${t("failed")} · ${t("terminalStatusResponse")}`,
       );
-      setTracking(false, "Ejecución terminada");
+      setTracking(false, t("executionFinished"));
       return;
     }
     if (["completed", "completed_with_errors"].includes(status.status)) {
@@ -468,7 +459,7 @@ async function poll(session, loadResult = true) {
             : "Resultado parcial · incluye errores y resumen por raíz",
         );
       }
-      setTracking(false, "Ejecución terminada");
+      setTracking(false, t("executionFinished"));
       return;
     }
     if (!["pending", "running"].includes(status.status))
@@ -545,7 +536,7 @@ async function execute() {
   elements.status.textContent = "◷ Enviando request";
   elements.status.dataset.status = "pending";
   message();
-  setTracking(true, "Creando ejecución…");
+  setTracking(true, t("creatingExecution"));
   focusExecutionOverview();
   const headers = { "Content-Type": "application/json" };
   const idempotency = $("idempotency").value;
@@ -562,7 +553,7 @@ async function execute() {
   try {
     const body = await request(
       "create",
-      "Creación",
+      t("created"),
       apiBase(),
       { method: "POST", headers, body: raw },
       session,
