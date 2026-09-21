@@ -8,8 +8,3 @@ type SecurityConfig struct {
 	Playground            PlaygroundConfig `json:"playground"`
 	Egress                EgressConfig     `json:"egress"`
 }
-
-type PlaygroundConfig struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}

@@ -23,11 +23,6 @@ type PlaygroundSessionAuthenticator struct {
 	ttl      time.Duration
 }
 
-type playgroundSessionClaims struct {
-	Version int   `json:"v"`
-	Expires int64 `json:"exp"`
-}
-
 func NewPlaygroundSessionAuthenticator(username, password string, identityKey []byte, ttl time.Duration) (*PlaygroundSessionAuthenticator, error) {
 	if username == "" || password == "" || len(identityKey) == 0 || ttl <= 0 {
 		return nil, errors.New("invalid playground session configuration")

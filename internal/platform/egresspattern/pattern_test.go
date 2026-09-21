@@ -5,12 +5,14 @@ import (
 	"testing"
 )
 
+type matchCase struct {
+	pattern string
+	target  string
+	want    bool
+}
+
 func TestMatchesExactWildcardAndAny(t *testing.T) {
-	cases := []struct {
-		pattern string
-		target  string
-		want    bool
-	}{
+	cases := []matchCase{
 		{"https://api.example.com", "https://api.example.com/v1", true},
 		{"https://api.example.com", "https://api.example.com:8443/v1", false},
 		{"https://*.example.com", "https://api.example.com/v1", true},

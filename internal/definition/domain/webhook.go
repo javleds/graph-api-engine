@@ -14,34 +14,16 @@ type Webhook struct {
 }
 
 func (w Webhook) MarshalJSON() ([]byte, error) {
-	type wire struct {
-		URL         string
-		Method      string
-		Headers     map[string]string
-		Auth        Authentication
-		Payload     string
-		Ordering    string `json:",omitempty"`
-		MaxInFlight *int   `json:"MaxInFlight,omitempty"`
-	}
 	var inFlight *int
 	if w.MaxInFlightSet || w.MaxInFlight != 0 {
 		value := w.MaxInFlight
 		inFlight = &value
 	}
-	return json.Marshal(wire{w.URL, w.Method, w.Headers, w.Auth, w.Payload, w.Ordering, inFlight})
+	return json.Marshal(webhookWire{w.URL, w.Method, w.Headers, w.Auth, w.Payload, w.Ordering, inFlight})
 }
 
 func (w *Webhook) UnmarshalJSON(data []byte) error {
-	type wire struct {
-		URL         string
-		Method      string
-		Headers     map[string]string
-		Auth        Authentication
-		Payload     string
-		Ordering    string
-		MaxInFlight *int `json:"MaxInFlight"`
-	}
-	var value wire
+	var value webhookWire
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
