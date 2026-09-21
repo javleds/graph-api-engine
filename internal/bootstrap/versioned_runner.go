@@ -2,15 +2,15 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
 	"github.com/javleds/api-engine/internal/execution/application/ports"
 	"github.com/javleds/api-engine/internal/execution/domain"
 )
 
 // Dispatch by persisted protocol, never by a caller's current URL.
 type versionedRunner struct {
-	store ports.ExecutionStore
-	v1    ports.ExecutionRunner
-	v2    ports.ExecutionRunner
+	store   ports.ExecutionStore
+	runners map[int]ports.ExecutionRunner
 }
 
 func (r versionedRunner) Run(ctx context.Context, id domain.ExecutionID) error {
@@ -18,8 +18,13 @@ func (r versionedRunner) Run(ctx context.Context, id domain.ExecutionID) error {
 	if err != nil {
 		return err
 	}
-	if current.APIVersion == 2 {
-		return r.v2.Run(ctx, id)
+	version := current.APIVersion
+	if version == 0 {
+		version = 1
 	}
-	return r.v1.Run(ctx, id)
+	runner, found := r.runners[version]
+	if !found {
+		return fmt.Errorf("execution %s has unsupported protocol version %d", id, version)
+	}
+	return runner.Run(ctx, id)
 }

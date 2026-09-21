@@ -9,10 +9,7 @@ import (
 )
 
 func (s *Server) executionLinks(id string) dto.ExecutionLinks {
-	prefix := s.ExecutionBasePath
-	if prefix == "" {
-		prefix = "/v1/executions"
-	}
+	prefix := s.route.executionBasePath
 	base := prefix + "/" + id
 	if s.apiVersion() == 2 {
 		return dto.ExecutionLinks{Self: base, Chunks: base + "/chunks", Tree: base + "/tree", Export: base + "/export", Results: base + "/results"}

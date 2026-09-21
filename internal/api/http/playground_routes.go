@@ -18,13 +18,13 @@ func (s *Server) registerPlayground(mux *http.ServeMux) {
 	if s.PlaygroundAuth == nil {
 		return
 	}
-	local := *s
-	local.Auth = s.PlaygroundAuth
+	auth := s.PlaygroundAuth
+	cookieName := ""
 	if s.PlaygroundSession != nil {
-		local.Auth = s.PlaygroundSession
-		local.PlaygroundCookieName = playgroundSessionCookie
+		auth = s.PlaygroundSession
+		cookieName = playgroundSessionCookie
 	}
-	local.ExecutionBasePath = "/playground/api/executions"
+	local := s.scopedRoute(routeDefinition{apiVersion: 1, executionBasePath: "/playground/api/executions"}, auth, cookieName)
 	protection := http.NewCrossOriginProtection()
 	protection.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "FORBIDDEN", "")
@@ -35,9 +35,7 @@ func (s *Server) registerPlayground(mux *http.ServeMux) {
 	mux.Handle("POST /playground/api/cache/clear", protection.Handler(http.HandlerFunc(local.clearCache)))
 	mux.HandleFunc("GET /playground/api/executions/{id}", local.getExecution)
 	mux.HandleFunc("GET /playground/api/executions/{id}/result", local.getResult)
-	v2 := local
-	v2.APIVersion = 2
-	v2.ExecutionBasePath = "/playground/api/v2/executions"
+	v2 := s.scopedRoute(routeDefinition{apiVersion: 2, executionBasePath: "/playground/api/v2/executions"}, auth, cookieName)
 	v2.registerV2(mux, protection)
 	mux.Handle("POST /playground/api/v2/validate", protection.Handler(http.HandlerFunc(v2.validateRequest)))
 }

@@ -8,10 +8,7 @@ import (
 )
 
 func (s *Server) apiVersion() int {
-	if s.APIVersion == 2 {
-		return 2
-	}
-	return 1
+	return s.route.apiVersion
 }
 func (s *Server) matchesVersion(e domain.Execution) bool {
 	version := e.APIVersion
@@ -28,7 +25,7 @@ func (s *Server) validateVersionInput(w http.ResponseWriter, input dto.CreateExe
 	return true
 }
 func (s *Server) registerV2(mux *http.ServeMux, protection *http.CrossOriginProtection) {
-	base := s.ExecutionBasePath
+	base := s.route.executionBasePath
 	create := http.Handler(http.HandlerFunc(s.createExecution))
 	if protection != nil {
 		create = protection.Handler(create)
@@ -46,4 +43,12 @@ func (s *Server) registerV2(mux *http.ServeMux, protection *http.CrossOriginProt
 	mux.HandleFunc("GET "+base+"/{id}/results", s.getV2Results)
 	mux.HandleFunc("GET "+base+"/{id}/results/{nodeId}", s.getV2Result)
 	mux.HandleFunc("GET "+base+"/{id}/webhooks", s.getV2Webhooks)
+}
+
+func (s *Server) registerV1(mux *http.ServeMux) {
+	base := s.route.executionBasePath
+	mux.HandleFunc("POST "+base, s.createExecution)
+	mux.HandleFunc("POST "+base+"/{id}/cancel", s.cancelExecution)
+	mux.HandleFunc("GET "+base+"/{id}", s.getExecution)
+	mux.HandleFunc("GET "+base+"/{id}/result", s.getResult)
 }

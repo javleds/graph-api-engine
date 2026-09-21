@@ -45,9 +45,7 @@ func (s *Server) loginPlayground(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) playgroundSessionStatus(w http.ResponseWriter, r *http.Request) {
-	local := *s
-	local.Auth = s.PlaygroundSession
-	local.PlaygroundCookieName = playgroundSessionCookie
+	local := s.scopedRoute(routeDefinition{apiVersion: 1, executionBasePath: "/playground/api/executions"}, s.PlaygroundSession, playgroundSessionCookie)
 	if _, ok := local.authorize(w, r, "executions:read"); !ok {
 		return
 	}

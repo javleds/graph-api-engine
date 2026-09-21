@@ -10,6 +10,7 @@ import (
 
 	api "github.com/javleds/api-engine/internal/api/http"
 	"github.com/javleds/api-engine/internal/execution/application"
+	"github.com/javleds/api-engine/internal/execution/application/ports"
 	"github.com/javleds/api-engine/internal/execution/domain"
 	"github.com/javleds/api-engine/internal/execution/infrastructure/inprocess"
 	executionsql "github.com/javleds/api-engine/internal/execution/infrastructure/sqlite"
@@ -144,7 +145,7 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 	}
 	runner := &worker.ExecutionRunner{Store: a.Store, Finalizer: finalizer, Engine: engine, InstanceID: instance, ResultRetention: cfg.Storage.ResultRetention.Value()}
 	v2runner := &worker.V2Runner{Store: a.Store, V2Store: a.Store, Finalizer: finalizer, Engine: engine, InstanceID: instance, ResultRetention: cfg.Storage.ResultRetention.Value(), Limits: cfg.Executions.V2.Limits()}
-	versions := versionedRunner{store: a.Store, v1: runner, v2: v2runner}
+	versions := versionedRunner{store: a.Store, runners: map[int]ports.ExecutionRunner{1: runner, 2: v2runner}}
 	a.Dispatcher = inprocess.NewLocalExecutionDispatcher(context.WithoutCancel(ctx), measuredRunner{runner: versions, store: a.Store, metrics: a.Metrics}, cfg.Executions.MaxConcurrent, 0)
 	a.Dispatcher.OnFailure = func(id domain.ExecutionID, _ error) {
 		a.Logger.Error("execution supervisor observed failure", "execution_id", id)

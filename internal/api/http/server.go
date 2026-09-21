@@ -16,13 +16,11 @@ import (
 type Server struct {
 	Configuration          *platformconfig.Config
 	Cancel                 *application.CancelExecution
-	APIVersion             int
 	V2Store                ports.V2Store
 	PlaygroundAuth         securityports.PrincipalAuthenticator
 	PlaygroundSession      securityports.PlaygroundSession
 	PlaygroundCookieName   string
 	PlaygroundCookieSecure bool
-	ExecutionBasePath      string
 	ValidateQuotas         func(context.Context, definitiondomain.CompiledDefinition) error
 	MetricsPath            string
 	WebhookStatus          notificationports.WebhookStatusReader
@@ -38,6 +36,15 @@ type Server struct {
 	Ready                  func(context.Context) bool
 	Metrics                http.Handler
 	ClearCache             func(context.Context) (int64, error)
+	route                  routeDefinition
+}
+
+func (s *Server) scopedRoute(definition routeDefinition, auth securityports.PrincipalAuthenticator, cookieName string) *Server {
+	scoped := *s
+	scoped.route = definition
+	scoped.Auth = auth
+	scoped.PlaygroundCookieName = cookieName
+	return &scoped
 }
 
 func (s *Server) Handler() http.Handler {
@@ -54,16 +61,12 @@ func (s *Server) Handler() http.Handler {
 		}
 		http.Redirect(w, r, "/playground", http.StatusSeeOther)
 	})
-	v2 := *s
-	v2.APIVersion = 2
-	v2.ExecutionBasePath = "/v2/executions"
+	v1 := s.scopedRoute(routeDefinition{apiVersion: 1, executionBasePath: "/v1/executions"}, s.Auth, "")
+	v1.registerV1(mux)
+	v2 := s.scopedRoute(routeDefinition{apiVersion: 2, executionBasePath: "/v2/executions"}, s.Auth, "")
 	v2.registerV2(mux, nil)
-	mux.HandleFunc("POST /v1/executions", s.createExecution)
-	mux.HandleFunc("POST /v1/executions/{id}/cancel", s.cancelExecution)
-	mux.HandleFunc("GET /v1/executions/{id}", s.getExecution)
-	mux.HandleFunc("GET /v1/executions/{id}/result", s.getResult)
-	mux.HandleFunc("POST /v1/cache/clear", s.clearCache)
-	mux.HandleFunc("POST /v2/cache/clear", s.clearCache)
+	mux.HandleFunc("POST /v1/cache/clear", v1.clearCache)
+	mux.HandleFunc("POST /v2/cache/clear", v2.clearCache)
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "live"}) })
 	mux.HandleFunc("GET /health/ready", func(w http.ResponseWriter, r *http.Request) {
 		if s.Ready != nil && !s.Ready(r.Context()) {
