@@ -10,21 +10,21 @@ import (
 )
 
 type Config struct {
-	Version       int                 `json:"version"`
-	Mode          string              `json:"mode"`
-	HTTP          HTTPConfig          `json:"http"`
-	Executions    ExecutionsConfig    `json:"executions"`
-	Fetch         FetchConfig         `json:"fetch"`
-	Throttle      ThrottleConfig      `json:"throttle"`
-	Deduplication DeduplicationConfig `json:"deduplication"`
-	Storage       StorageConfig       `json:"storage"`
-	Cache         CacheConfig         `json:"cache"`
-	Webhooks      WebhooksConfig      `json:"webhooks"`
-	Security      SecurityConfig      `json:"security"`
-	UI            UIConfig            `json:"ui"`
-	Maintenance   MaintenanceConfig   `json:"maintenance"`
-	Shutdown      ShutdownConfig      `json:"shutdown"`
-	Observability ObservabilityConfig `json:"observability"`
+	Version       int                 `json:"version" yaml:"version" validate:"gt=0"`
+	Mode          string              `json:"mode" yaml:"mode"`
+	HTTP          HTTPConfig          `json:"http" yaml:"http"`
+	Executions    ExecutionsConfig    `json:"executions" yaml:"executions"`
+	Fetch         FetchConfig         `json:"fetch" yaml:"fetch"`
+	Throttle      ThrottleConfig      `json:"throttle" yaml:"throttle"`
+	Deduplication DeduplicationConfig `json:"deduplication" yaml:"deduplication"`
+	Storage       StorageConfig       `json:"storage" yaml:"storage"`
+	Cache         CacheConfig         `json:"cache" yaml:"cache"`
+	Webhooks      WebhooksConfig      `json:"webhooks" yaml:"webhooks"`
+	Security      SecurityConfig      `json:"security" yaml:"security"`
+	UI            UIConfig            `json:"ui" yaml:"ui"`
+	Maintenance   MaintenanceConfig   `json:"maintenance" yaml:"maintenance"`
+	Shutdown      ShutdownConfig      `json:"shutdown" yaml:"shutdown"`
+	Observability ObservabilityConfig `json:"observability" yaml:"observability"`
 }
 
 func (c *Config) Validate() error {
@@ -37,7 +37,7 @@ func (c *Config) Validate() error {
 	if c.Mode != "local" || c.Storage.Driver != "sqlite" || c.Cache.Driver != "sqlite" || c.Throttle.Driver != "local_pacing" || c.Deduplication.Driver != "local_singleflight" {
 		return &domain.ValidationError{Code: "UNSUPPORTED_DRIVER", Message: "unsupported service mode or driver"}
 	}
-	if err := positiveValues(*c); err != nil {
+	if err := validateFields(*c); err != nil {
 		return err
 	}
 	if err := validateHTTP(c.HTTP, c.Security); err != nil {

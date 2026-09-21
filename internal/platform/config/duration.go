@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/javleds/api-engine/internal/definition/domain"
+	"gopkg.in/yaml.v3"
 )
 
 type Duration time.Duration
@@ -16,6 +17,18 @@ func (d *Duration) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	parsed, err := domain.ParseDuration(value)
+	if err != nil {
+		return err
+	}
+	*d = Duration(parsed)
+	return nil
+}
+
+func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind != yaml.ScalarNode || value.Tag != "!!str" {
+		return fmt.Errorf("duration must be a string")
+	}
+	parsed, err := domain.ParseDuration(value.Value)
 	if err != nil {
 		return err
 	}

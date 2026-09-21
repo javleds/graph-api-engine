@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -14,36 +13,37 @@ import (
 var environmentReference = regexp.MustCompile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}")
 
 func decodeYAML(data []byte, lookup func(string) (string, bool)) (*Config, error) {
-	canonical, err := normalizeYAML(data, lookup)
-	if err != nil {
+	result := Default()
+	if err := decodeYAMLInto(data, lookup, &result); err != nil {
 		return nil, err
 	}
-	return decodeJSON(canonical)
+	return &result, nil
 }
 
-func normalizeYAML(data []byte, lookup func(string) (string, bool)) ([]byte, error) {
+func decodeYAMLInto(data []byte, lookup func(string) (string, bool), result *Config) error {
 	document, err := readYAMLDocument(data)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := validateYAMLNode(document.Content[0]); err != nil {
-		return nil, err
+		return err
 	}
 	if err := interpolateYAMLNode(document.Content[0], lookup); err != nil {
-		return nil, err
+		return err
 	}
 	if err := validateYAMLNode(document.Content[0]); err != nil {
-		return nil, err
+		return err
 	}
-	var value any
-	if err := document.Content[0].Decode(&value); err != nil {
-		return nil, fmt.Errorf("invalid configuration YAML: %w", err)
-	}
-	canonical, err := json.Marshal(value)
+	encoded, err := yaml.Marshal(document.Content[0])
 	if err != nil {
-		return nil, fmt.Errorf("normalize configuration YAML: %w", err)
+		return fmt.Errorf("encode configuration YAML: %w", err)
 	}
-	return canonical, nil
+	decoder := yaml.NewDecoder(bytes.NewReader(encoded))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(result); err != nil {
+		return fmt.Errorf("invalid configuration YAML: %w", err)
+	}
+	return nil
 }
 
 func readYAMLDocument(data []byte) (*yaml.Node, error) {
