@@ -67,6 +67,17 @@ func TestSQLiteCacheContract(t *testing.T) {
 	if count, err := cache.DeleteExpired(ctx, 10); err != nil || count != 1 {
 		t.Fatalf("cleanup %d %v", count, err)
 	}
+	entry.Key = "clear"
+	entry.ExpiresAt = clock.now.Add(time.Hour)
+	if err = cache.Put(ctx, entry); err != nil {
+		t.Fatal(err)
+	}
+	if count, err := cache.Clear(ctx); err != nil || count != 1 {
+		t.Fatalf("clear %d %v", count, err)
+	}
+	if _, found, err := cache.Get(ctx, entry.Key); err != nil || found {
+		t.Fatalf("cleared entry found=%t err=%v", found, err)
+	}
 }
 
 func TestSQLiteCacheEvictsOldestAndRejectsFormats(t *testing.T) {

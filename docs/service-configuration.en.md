@@ -20,3 +20,5 @@ curl http://localhost:8080/health/ready
 ```
 
 Open `/login`, sign in, and continue to `/playground`. The process can also be started directly with `./bin/api-engine serve --config config/config.yml`.
+
+For controlled cache invalidation, grant selected API principals the `cache:clear` permission and use the documented versioned routes. Authenticated playground sessions can also clear the shared response cache after a confirmation prompt; see [Cache maintenance](cache-maintenance.en.md).

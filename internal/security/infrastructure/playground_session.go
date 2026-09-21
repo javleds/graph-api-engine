@@ -62,7 +62,7 @@ func (a *PlaygroundSessionAuthenticator) Authenticate(_ context.Context, token s
 	if err := json.Unmarshal(payload, &claims); err != nil || claims.Version != 1 || a.now().Unix() >= claims.Expires {
 		return domain.Principal{}, ErrInvalidPlaygroundCredentials
 	}
-	return domain.Principal{OwnerID: domain.PlaygroundOwnerID, Permissions: []string{"executions:create", "executions:read"}}, nil
+	return domain.Principal{OwnerID: domain.PlaygroundOwnerID, Permissions: []string{"executions:create", "executions:read", "cache:clear"}}, nil
 }
 
 func (a *PlaygroundSessionAuthenticator) signature(payload string) string {

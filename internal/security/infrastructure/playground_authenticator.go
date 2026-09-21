@@ -9,5 +9,5 @@ import (
 type PlaygroundAuthenticator struct{}
 
 func (PlaygroundAuthenticator) Authenticate(context.Context, string) (domain.Principal, error) {
-	return domain.Principal{OwnerID: domain.PlaygroundOwnerID, Permissions: []string{"executions:create", "executions:read"}}, nil
+	return domain.Principal{OwnerID: domain.PlaygroundOwnerID, Permissions: []string{"executions:create", "executions:read", "cache:clear"}}, nil
 }

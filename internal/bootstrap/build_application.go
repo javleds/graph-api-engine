@@ -211,6 +211,7 @@ func Build(ctx context.Context, cfg *config.Config) (app *Application, err error
 		MaxRequestBytes:        int64(cfg.HTTP.MaxRequestBytes),
 		MaxJSONDepth:           cfg.Fetch.MaxJSONDepth,
 		Ready:                  a.isReady,
+		ClearCache:             a.Cache.Clear,
 	}
 	if cfg.Observability.MetricsEnabled {
 		server.Metrics = a.Metrics

@@ -60,6 +60,24 @@ test('invalid JSON never creates a job', async ({ page }) => {
   expect(calls).toBe(0);
 });
 
+test('cache clearing requires confirmation and reports the deleted entries', async ({ page }) => {
+  let calls = 0;
+  page.on('dialog', dialog => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain('afecta a todos los usuarios');
+    return dialog.accept();
+  });
+  await page.route('**/playground/api/cache/clear', route => {
+    calls++;
+    return route.fulfill({ json: { deletedEntries: 7 } });
+  });
+  await page.goto('/playground');
+  await page.getByRole('button', { name: 'Limpiar caché', exact: true }).click();
+  await expect(page.locator('#message')).toHaveText('Caché limpiada: 7 entradas eliminadas.');
+  await expect(page.getByRole('button', { name: 'Limpiar caché', exact: true })).toBeEnabled();
+  expect(calls).toBe(1);
+});
+
 test('partial result supports exact raw, safe interactive tree and bounded expansion', async ({ page }) => {
   const raw = '{\n "id":"' + executionID + '", "status":"completed_with_errors", "result":{"large":9007199254740993,"html":"<img src=x onerror=alert(1)>","items":[' + Array.from({ length: 250 }, (_, i) => i).join(',') + ']},"errors":[{"code":"UPSTREAM_HTTP_ERROR"}],"errorSummary":{"total":1},"roots":[]\n}';
   await mockJob(page, 'completed_with_errors', raw);

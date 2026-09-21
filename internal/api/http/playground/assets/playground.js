@@ -11,6 +11,7 @@ const elements = Object.fromEntries(
     "request",
     "execute",
     "clear",
+    "clear-cache",
     "stop",
     "cancel-execution",
     "resume",
@@ -117,6 +118,7 @@ let tracking = false;
 let currentID = "";
 let currentStatus = "";
 let cancelling = false;
+let clearingCache = false;
 let rawResponse = null;
 let treeAvailable = false;
 const exchanges = new Map();
@@ -130,6 +132,7 @@ function setTracking(active, text) {
   $("execution-version").disabled = active;
   elements.execute.disabled = active;
   elements.clear.disabled = active;
+  elements["clear-cache"].disabled = active || clearingCache;
   elements.stop.disabled = !active;
   if ($("refresh-webhook")) $("refresh-webhook").disabled = active;
   elements["tracking-state"].textContent = text;
@@ -496,6 +499,31 @@ async function cancelExecution() {
     fail(error, session);
   }
 }
+async function clearCache() {
+  if (tracking || clearingCache || !window.confirm(t("clearCacheConfirmation"))) return;
+  const session = beginSession();
+  clearingCache = true;
+  elements["clear-cache"].disabled = true;
+  message(t("clearingCache"));
+  try {
+    const raw = await request(
+      "clear-cache",
+      t("clearCache"),
+      "/playground/api/cache/clear",
+      { method: "POST" },
+      session,
+    );
+    const result = parsedObject(raw);
+    if (!Number.isInteger(result.deletedEntries) || result.deletedEntries < 0)
+      throw new Error(t("cacheClearInvalid"));
+    message(t("cacheCleared").replace("{count}", String(result.deletedEntries)));
+  } catch (error) {
+    if (session === generation && error.name !== "AbortError") message(error.message);
+  } finally {
+    clearingCache = false;
+    elements["clear-cache"].disabled = tracking;
+  }
+}
 function startTracking(id, loadResult = true) {
   if (!validExecutionID(id)) {
     message("El ID de ejecución debe ser un UUID válido.");
@@ -573,6 +601,7 @@ $("example").addEventListener("click", () => loadExample("basic"));
 elements.execute.addEventListener("click", execute);
 elements.stop.addEventListener("click", stopTracking);
 elements["cancel-execution"].addEventListener("click", cancelExecution);
+elements["clear-cache"].addEventListener("click", clearCache);
 $("resume-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const id = elements["execution-id"].value.trim();

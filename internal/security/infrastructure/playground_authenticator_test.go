@@ -18,7 +18,7 @@ func TestPlaygroundOwnerCannotBeConfiguredAsTokenPrincipal(t *testing.T) {
 		t.Fatal("reserved owner accepted")
 	}
 	p, err := (PlaygroundAuthenticator{}).Authenticate(context.Background(), "ignored")
-	if err != nil || p.OwnerID != domain.PlaygroundOwnerID || !p.Can("executions:create") || !p.Can("executions:read") || p.Can("metrics:read") {
+	if err != nil || p.OwnerID != domain.PlaygroundOwnerID || !p.Can("executions:create") || !p.Can("executions:read") || !p.Can("cache:clear") || p.Can("metrics:read") {
 		t.Fatalf("%+v %v", p, err)
 	}
 }

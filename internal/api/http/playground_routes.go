@@ -32,6 +32,7 @@ func (s *Server) registerPlayground(mux *http.ServeMux) {
 	mux.Handle("POST /playground/api/validate", protection.Handler(http.HandlerFunc(local.validateRequest)))
 	mux.Handle("POST /playground/api/executions", protection.Handler(http.HandlerFunc(local.createExecution)))
 	mux.Handle("POST /playground/api/executions/{id}/cancel", protection.Handler(http.HandlerFunc(local.cancelExecution)))
+	mux.Handle("POST /playground/api/cache/clear", protection.Handler(http.HandlerFunc(local.clearCache)))
 	mux.HandleFunc("GET /playground/api/executions/{id}", local.getExecution)
 	mux.HandleFunc("GET /playground/api/executions/{id}/result", local.getResult)
 	v2 := local

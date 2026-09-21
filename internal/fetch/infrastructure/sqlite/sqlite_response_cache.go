@@ -117,6 +117,16 @@ func (s *SQLiteResponseCache) Delete(ctx context.Context, key string) error {
 	return err
 }
 
+// Clear removes every stored upstream response. It does not affect in-flight
+// requests, execution records, quota state, or HTTP transport connections.
+func (s *SQLiteResponseCache) Clear(ctx context.Context) (int64, error) {
+	result, err := s.DB.ExecContext(ctx, "DELETE FROM http_cache")
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 func (s *SQLiteResponseCache) enforceLimits(ctx context.Context, tx *sql.Tx) error {
 	var entries, bytes int64
 	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*),COALESCE(SUM(plaintext_size),0) FROM http_cache").Scan(&entries, &bytes); err != nil {

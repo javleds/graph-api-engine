@@ -17,7 +17,7 @@ func TestPlaygroundSessionAuthenticatesAndExpires(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if principal, err := auth.Authenticate(context.Background(), token); err != nil || principal.OwnerID == "" {
+	if principal, err := auth.Authenticate(context.Background(), token); err != nil || principal.OwnerID == "" || !principal.Can("cache:clear") {
 		t.Fatalf("principal=%#v err=%v", principal, err)
 	}
 	now = now.Add(time.Hour)

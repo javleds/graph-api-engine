@@ -3062,7 +3062,7 @@ Ejemplo opcional del servidor:
 
 El hash ilustrativo no es un valor válido de despliegue. El loader exige exactamente 64 caracteres hexadecimales que representen SHA-256 del token bearer en sus bytes originales. El token se genera con al menos 32 bytes aleatorios y se entrega fuera de banda al consumidor; no utilizar passwords humanos para este esquema.
 
-Puede haber varios tokens para el mismo owner durante una rotación. Un token deshabilitado deja de autorizar nuevas requests. Los permisos v1 son `executions:create`, `executions:read` y `metrics:read`; los endpoints de salud solo revelan el estado mínimo. No hay rol que permita leer snapshots con secretos mediante la API.
+Puede haber varios tokens para el mismo owner durante una rotación. Un token deshabilitado deja de autorizar nuevas requests. Los permisos son `executions:create`, `executions:read`, `metrics:read` y `cache:clear`; este último permite vaciar la caché global de respuestas mediante las rutas versionadas de mantenimiento. Los endpoints de salud solo revelan el estado mínimo. No hay rol que permita leer snapshots con secretos mediante la API.
 
 Los archivos `identityKeyFile` y los listados en `keyFiles` contienen exactamente 32 bytes binarios de material aleatorio, no su representación hexadecimal ni una contraseña. El proceso requiere permiso de lectura, pero no de escritura. Keys ausentes, longitud incorrecta o `activeKeyId` inexistente impiden arrancar.
 

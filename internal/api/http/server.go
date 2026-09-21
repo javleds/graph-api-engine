@@ -37,6 +37,7 @@ type Server struct {
 	ValidateDestinations   func(definitiondomain.CompiledDefinition) error
 	Ready                  func(context.Context) bool
 	Metrics                http.Handler
+	ClearCache             func(context.Context) (int64, error)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -61,6 +62,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/executions/{id}/cancel", s.cancelExecution)
 	mux.HandleFunc("GET /v1/executions/{id}", s.getExecution)
 	mux.HandleFunc("GET /v1/executions/{id}/result", s.getResult)
+	mux.HandleFunc("POST /v1/cache/clear", s.clearCache)
+	mux.HandleFunc("POST /v2/cache/clear", s.clearCache)
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "live"}) })
 	mux.HandleFunc("GET /health/ready", func(w http.ResponseWriter, r *http.Request) {
 		if s.Ready != nil && !s.Ready(r.Context()) {

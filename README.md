@@ -25,7 +25,7 @@ Copiar `config/config.example.yml` a `config/config.yml` y ajustar rutas locales
 
 Los archivos de identidad y cifrado contienen **32 bytes binarios aleatorios**, cada uno generado independientemente. Guardarlos fuera del repositorio, accesibles solo al operador y al UID del runtime. `activeKeyId` identifica la clave de cifrado vigente; conservar las claves anteriores para leer registros durante rotación. La clave de identidad debe permanecer estable para mantener scopes e idempotencia.
 
-El archivo de principals relaciona `ownerId`, SHA-256 hexadecimal del token bearer, `enabled` y permisos (`executions:create`, `executions:read`, `metrics:read`). Generar tokens de alta entropía y entregarlos fuera de banda. El formato exacto está en §21.5.
+El archivo de principals relaciona `ownerId`, SHA-256 hexadecimal del token bearer, `enabled` y permisos (`executions:create`, `executions:read`, `metrics:read`, `cache:clear`). Generar tokens de alta entropía y entregarlos fuera de banda. El formato exacto está en §21.5.
 
 HTTPS es obligatorio salvo desarrollo explícito. Para pruebas locales, habilitar `allowHTTPForDevelopment`, declarar el origin exacto y autorizar el CIDR privado concreto. La autenticación solo puede desactivarse escuchando en loopback. No usar la desactivación de autenticación en el contenedor expuesto.
 
@@ -62,6 +62,8 @@ Enviar `POST /v1/executions` con bearer del engine, `Content-Type: application/j
 Consultar `GET /v1/executions/{id}` y `GET /v1/executions/{id}/result` con el mismo owner. El resultado terminal usa `result`, `errors`, `errorSummary` y `roots`; `completed_with_errors` conserva datos válidos y posiciones de nodos fallidos. Un resultado no listo o una ejecución fallida responde `409`; uno expirado responde `410`. Una colección vacía válida cuenta como éxito.
 
 Las cuotas se comparten por proveedor/credencial y endpoint. Un arranque frío espera la ventana conservadora definida en §14 antes de enviar. Configurar grupos administrados cuando varios tokens u origins compartan una cuota real. Caché y flights evitan intentos físicos sin eliminar relaciones de salida.
+
+Un principal con el permiso dedicado `cache:clear` puede vaciar la caché compartida con `POST /v1/cache/clear` o `POST /v2/cache/clear`; las sesiones autenticadas del playground disponen del control equivalente con confirmación. Consultar [mantenimiento de caché](docs/cache-maintenance.md) para su efecto y respuesta.
 
 Para resultados progresivos usar `/v2/executions`: [guía y protocolo](docs/api-v2-guide.md), [schema v2](contracts/create_execution_v2.schema.json) y [operación, recursos y recuperación](docs/v2-operations.md). El lenguaje `definition.version` continúa en 1. Las nuevas ejecuciones publican cada raíz single o elemento de colección cuando termina toda su cadena: `/results` lista eventos por cursor y `/results/{nodeId}` entrega el JSON completo. Si hay webhook, reciben automáticamente cada `node.finished` con sus datos y el aviso terminal; superar `webhooks.maxPayloadBytes` falla sólo esa entrega, sin truncar el resultado. Se conservan chunks, árbol y exportación NDJSON.
 

@@ -41,7 +41,7 @@ func LoadTokenAuthenticator(path string) (*TokenAuthenticator, error) {
 		}
 		seen[strings.ToLower(p.TokenSHA256)] = true
 		for _, perm := range p.Permissions {
-			if perm != "executions:create" && perm != "executions:read" && perm != "metrics:read" {
+			if perm != "executions:create" && perm != "executions:read" && perm != "metrics:read" && perm != "cache:clear" {
 				return nil, fmt.Errorf("unknown permission")
 			}
 		}
@@ -50,7 +50,7 @@ func LoadTokenAuthenticator(path string) (*TokenAuthenticator, error) {
 }
 func (a *TokenAuthenticator) Authenticate(_ context.Context, token string) (domain.Principal, error) {
 	if a.Development {
-		return domain.Principal{OwnerID: "development", Permissions: []string{"executions:create", "executions:read", "metrics:read"}}, nil
+		return domain.Principal{OwnerID: "development", Permissions: []string{"executions:create", "executions:read", "metrics:read", "cache:clear"}}, nil
 	}
 	hash := sha256.Sum256([]byte(token))
 	var result domain.Principal
