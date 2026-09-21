@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+
+	"github.com/spf13/cobra"
 )
 
 var version = "development"
@@ -15,21 +17,35 @@ func main() {
 		os.Exit(1)
 	}
 }
+
 func run(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: api-engine serve --config config.yml | validate --file definition.json | migrate --config config.yml | version")
+	command := newRootCommand()
+	command.SetArgs(args)
+	command.SetOut(os.Stdout)
+	command.SetErr(os.Stderr)
+	return command.Execute()
+}
+
+func newRootCommand() *cobra.Command {
+	command := &cobra.Command{
+		Use:           "api-engine",
+		Short:         "API Execution Engine",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(*cobra.Command, []string) error {
+			return fmt.Errorf("usage: api-engine serve --config config.yml | validate --file definition.json | migrate --config config.yml | version")
+		},
 	}
-	switch args[0] {
-	case "version":
-		fmt.Println("api-engine", version, "commit", commit, "toolchain", runtime.Version())
-		return nil
-	case "serve":
-		return serve(args[1:], false)
-	case "migrate":
-		return serve(args[1:], true)
-	case "validate":
-		return validate(args[1:])
-	default:
-		return fmt.Errorf("unknown command")
-	}
+	command.AddCommand(newServeCommand("serve", false))
+	command.AddCommand(newServeCommand("migrate", true))
+	command.AddCommand(&cobra.Command{
+		Use:   "version",
+		Short: "Print build version information",
+		Args:  cobra.NoArgs,
+		Run: func(command *cobra.Command, _ []string) {
+			fmt.Fprintln(command.OutOrStdout(), "api-engine", version, "commit", commit, "toolchain", runtime.Version())
+		},
+	})
+	command.AddCommand(newValidateCommand())
+	return command
 }

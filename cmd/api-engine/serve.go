@@ -2,21 +2,38 @@ package main
 
 import (
 	"context"
-	"flag"
 	"github.com/javleds/api-engine/internal/bootstrap"
 	"github.com/javleds/api-engine/internal/platform/config"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/spf13/cobra"
 )
 
-func serve(args []string, migrateOnly bool) error {
-	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
-	path := flags.String("config", "", "operator YAML configuration")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newServeCommand(name string, migrateOnly bool) *cobra.Command {
+	var path string
+	command := &cobra.Command{
+		Use:   name,
+		Short: commandSummary(name),
+		Args:  cobra.NoArgs,
+		RunE: func(*cobra.Command, []string) error {
+			return runServe(path, migrateOnly)
+		},
 	}
-	cfg, err := config.Load(*path)
+	command.Flags().StringVar(&path, "config", "", "operator YAML configuration")
+	return command
+}
+
+func commandSummary(name string) string {
+	if name == "migrate" {
+		return "Apply storage migrations"
+	}
+	return "Run the API server"
+}
+
+func runServe(path string, migrateOnly bool) error {
+	cfg, err := config.Load(path)
 	if err != nil {
 		return err
 	}
