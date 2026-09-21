@@ -70,8 +70,12 @@ test('cache clearing uses a PrimeVue confirmation and toast notification', async
   await page.getByRole('button', { name: 'Limpiar caché', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Limpiar caché' });
   await expect(dialog).toContainText('afecta a todos los usuarios');
+  await expect(dialog).toHaveCSS('background-color', 'rgb(16, 27, 50)');
+  await expect(dialog.locator('xpath=..')).toHaveCSS('background-color', 'rgba(5, 12, 25, 0.72)');
   await dialog.getByRole('button', { name: 'Limpiar caché', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Caché limpiada: 7 entradas eliminadas.');
+  const toast = page.getByRole('alert');
+  await expect(toast).toContainText('Caché limpiada: 7 entradas eliminadas.');
+  await expect(toast).toHaveCSS('background-color', 'rgb(16, 27, 50)');
   await expect(page.getByRole('button', { name: 'Limpiar caché', exact: true })).toBeEnabled();
   expect(calls).toBe(1);
 });

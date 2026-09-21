@@ -18,6 +18,10 @@ export default defineConfig({
           chunk.name === 'cache-maintenance-overlay'
             ? 'assets/cache-maintenance-overlay.js'
             : 'assets/[name]-[hash].js',
+        assetFileNames: (asset) =>
+          asset.name === 'cache-maintenance-overlay.css'
+            ? 'assets/cache-maintenance-overlay.css'
+            : 'assets/[name]-[hash][extname]',
       },
     },
   },
