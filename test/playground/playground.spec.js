@@ -60,20 +60,18 @@ test('invalid JSON never creates a job', async ({ page }) => {
   expect(calls).toBe(0);
 });
 
-test('cache clearing requires confirmation and reports the deleted entries', async ({ page }) => {
+test('cache clearing uses a PrimeVue confirmation and toast notification', async ({ page }) => {
   let calls = 0;
-  page.on('dialog', dialog => {
-    expect(dialog.type()).toBe('confirm');
-    expect(dialog.message()).toContain('afecta a todos los usuarios');
-    return dialog.accept();
-  });
   await page.route('**/playground/api/cache/clear', route => {
     calls++;
     return route.fulfill({ json: { deletedEntries: 7 } });
   });
   await page.goto('/playground');
   await page.getByRole('button', { name: 'Limpiar caché', exact: true }).click();
-  await expect(page.locator('#message')).toHaveText('Caché limpiada: 7 entradas eliminadas.');
+  const dialog = page.getByRole('dialog', { name: 'Limpiar caché' });
+  await expect(dialog).toContainText('afecta a todos los usuarios');
+  await dialog.getByRole('button', { name: 'Limpiar caché', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Caché limpiada: 7 entradas eliminadas.');
   await expect(page.getByRole('button', { name: 'Limpiar caché', exact: true })).toBeEnabled();
   expect(calls).toBe(1);
 });
