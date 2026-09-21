@@ -16,7 +16,9 @@ Usar YAML como único formato de configuración del operador para `serve`, `migr
 
 ## Estrategia
 
-El cargador valida el árbol YAML y lo normaliza a JSON interno antes de aplicar el decodificador JSON estricto existente. Así se preservan los tags actuales, los defaults, las duraciones y el rechazo de propiedades desconocidas sin duplicar la lógica de configuración.
+El cargador valida el árbol YAML y lo decodifica directamente sobre estructuras Go con tags `yaml`, defaults y campos conocidos estrictos. Las duraciones implementan su decodificación YAML y las validaciones declarativas cubren límites locales; las reglas de seguridad y entre campos continúan explícitas.
+
+No se usa Viper ni un loader dotenv genérico: el primero no ofrece estas restricciones de YAML por defecto y el segundo ampliaría la sintaxis aceptada del `.env`. El parser local mantiene la precedencia documentada, donde las variables ya definidas por el proceso no se sobrescriben.
 
 ## Validación
 

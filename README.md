@@ -36,7 +36,7 @@ HTTPS es obligatorio salvo desarrollo explícito. Para pruebas locales, habilita
 
 `serve` valida configuración y claves, adquiere el lock de instancia, migra y reconcilia el estado antes de aceptar tráfico. No ejecutar varios procesos sobre el mismo directorio. `ENGINE_CONFIG`, `ENGINE_HTTP_ADDRESS`, `ENGINE_HTTP_PUBLIC_BASE_URL` y `ENGINE_LOG_LEVEL` son los overrides admitidos. `--config` prevalece sobre `ENGINE_CONFIG`.
 
-La configuración del operador acepta exclusivamente YAML (`.yml` o `.yaml`). Sus valores escalares pueden incluir ${VARIABLE}; la variable debe existir y no estar vacía. Un valor que sea solo ${VARIABLE} conserva tipos YAML como número o booleano; una referencia dentro de texto produce un string. El loader rechaza aliases, merges, claves duplicadas, documentos múltiples, valores `null` y campos desconocidos.
+La configuración del operador acepta exclusivamente YAML (`.yml` o `.yaml`). Sus valores escalares pueden incluir ${VARIABLE}; la variable debe existir y no estar vacía. Un valor que sea solo ${VARIABLE} conserva tipos YAML como número o booleano; una referencia dentro de texto produce un string. El loader rechaza aliases, merges, claves duplicadas, documentos múltiples, valores `null` y campos desconocidos; decodifica directamente en estructuras Go tipadas con defaults y validación declarativa. La carga local de `.env` no sobrescribe el entorno del proceso.
 
 ### Orígenes abiertos en desarrollo local
 
