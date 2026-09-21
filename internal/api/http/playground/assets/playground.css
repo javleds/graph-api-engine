@@ -156,6 +156,7 @@ dd { margin: 2px 0 0; color: #dbe5f8; font: 12px/1.35 ui-monospace, SFMono-Regul
 .counter { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 7px; color: #aebbd2; background: #0e1930; font: 10px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .counter strong { color: var(--mint); font-size: 16px; }
 .message { margin-top: 10px; padding: 10px 12px; color: var(--danger); background: var(--error-bg); border: 1px solid #643244; border-radius: 3px; overflow-wrap: anywhere; font-size: 12px; }
+.message[data-kind="info"] { color: var(--cyan); background: #09283a; border-color: #164c6b; }
 .webhook { display: flex; align-items: center; gap: 12px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }

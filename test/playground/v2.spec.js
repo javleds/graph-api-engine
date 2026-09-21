@@ -26,33 +26,60 @@ async function prepare(page) {
   await page.locator("#request").fill(requestBody);
 }
 
-test("complete result stays mounted and readable during later arrivals", async ({ page }) => {
+test("complete results arrive automatically without replacing an open result", async ({ page }) => {
   let sequence = "1";
   let reads = 0;
   await page.route("**/playground/api/v2/executions", route => route.fulfill({ status: 202, json: { id, status: "pending" } }));
   await page.route(`**${endpoint}`, route => route.fulfill({ json: { id, status: "running", v2: { resultsEnabled: true, lastResultSequence: sequence, resultCount: Number(sequence) } } }));
   await page.route(`**${endpoint}/results?*`, route => {
     reads++;
+    const after = new URL(route.request().url()).searchParams.get("after");
     const through = new URL(route.request().url()).searchParams.get("through");
-    return route.fulfill({ json: { results: [{ eventId: "event1", nodeId: "bulbasaur", root: "pokemon", index: 0, sequence: "1", status: "completed" }], nextCursor: "1", lastSequence: through, hasMore: false, terminal: false } });
+    const results = after === "0"
+      ? [{ eventId: "event1", nodeId: "bulbasaur", root: "pokemon", index: 0, sequence: "1", status: "completed" }]
+      : [
+          { eventId: "event2", nodeId: "ivysaur", root: "pokemon", index: 1, sequence: "2", status: "completed" },
+          { eventId: "event3", nodeId: "venusaur", root: "pokemon", index: 2, sequence: "3", status: "completed" },
+        ];
+    return route.fulfill({ json: { results, nextCursor: after === "0" ? "1" : "3", lastSequence: through, hasMore: false, terminal: false } });
   });
   await page.route(`**${endpoint}/results/bulbasaur`, route => route.fulfill({ contentType: "application/json", body: '{"nodeId":"bulbasaur","data":{"id":9007199254740993,"species":{"name":"bulbasaur"}},"complete":true}' }));
   await prepare(page);
   await page.locator("#execute").click();
   const row = page.locator(".v2-result-list button").first();
+  await expect(page.locator(".v2-results > .message")).toBeHidden();
   await row.click();
   await expect(page.locator(".v2-result-detail")).toContainText("Cadena terminada");
   await page.getByText("JSON original", { exact: true }).click();
   await expect(page.getByLabel("Resultado JSON original (solo lectura)")).toHaveValue(/9007199254740993/);
   await row.evaluate(node => { node.dataset.stable = "yes"; node.focus(); });
   sequence = "3";
-  await expect(page.getByRole("button", { name: "Hay 2 resultados nuevos. Ver resultados nuevos" })).toBeVisible();
+  await expect(page.locator(".v2-result-list button")).toHaveCount(3);
+  await expect(page.getByRole("button", { name: /Ver resultados nuevos/ })).toHaveCount(0);
   await expect(row).toHaveAttribute("data-stable", "yes");
   await expect(row).toBeFocused();
   await expect(page.getByLabel("Resultado JSON original (solo lectura)")).toBeVisible();
-  expect(reads).toBe(1);
-  await page.getByRole("button", { name: "Hay 2 resultados nuevos. Ver resultados nuevos" }).click();
-  await expect.poll(() => reads).toBe(2);
+  expect(reads).toBeGreaterThanOrEqual(2);
+});
+
+test("automatic result stream retains only the latest 200 rows", async ({ page }) => {
+  await page.route("**/playground/api/v2/executions", route => route.fulfill({ status: 202, json: { id, status: "pending" } }));
+  await page.route(`**${endpoint}`, route => route.fulfill({ json: { id, status: "completed", v2: { resultsEnabled: true, lastResultSequence: "201", resultCount: 201 } } }));
+  await page.route(`**${endpoint}/results?*`, route => {
+    const after = Number(new URL(route.request().url()).searchParams.get("after"));
+    const next = Math.min(after + 50, 201);
+    const results = Array.from({ length: next - after }, (_, index) => {
+      const sequence = after + index + 1;
+      return { nodeId: `node-${sequence}`, root: `node-${sequence}`, sequence: String(sequence), status: "completed" };
+    });
+    return route.fulfill({ json: { results, nextCursor: String(next), lastSequence: "201", hasMore: next < 201, terminal: true } });
+  });
+  await prepare(page);
+  await page.locator("#execute").click();
+  const rows = page.locator(".v2-result-list button");
+  await expect(rows).toHaveCount(200);
+  await expect(rows.first()).toHaveText("node-2 · completed");
+  await expect(rows.last()).toHaveText("node-201 · completed");
 });
 
 test("large completed result offers bounded branch exploration and download", async ({ page }) => {
@@ -100,19 +127,17 @@ test("first results read uses the server snapshot when a node closes after statu
     const query = new URL(route.request().url()).searchParams;
     queries.push(query.get("through"));
     sequence = "1";
-    return route.fulfill({ json: { results: [{ nodeId: "node", root: "pokemon", status: "completed" }], nextCursor: "1", lastSequence: "1", hasMore: true, terminal: false } });
+    return route.fulfill({ json: { results: [{ nodeId: "node", root: "pokemon", status: "completed" }], nextCursor: "1", lastSequence: "1", hasMore: false, terminal: false } });
   });
   await prepare(page);
   await page.locator("#execute").click();
   await expect(page.locator(".v2-result-list")).toContainText("pokemon");
-  await page.getByRole("button", { name: "Resultados siguientes" }).click();
-  await expect.poll(() => queries.length).toBe(2);
-  expect(queries).toEqual(["0", "1"]);
-  await expect(page.getByRole("button", { name: /Ver resultados nuevos/ })).toBeHidden();
+  expect(queries).toEqual(["0"]);
+  await expect(page.getByRole("button", { name: /Resultados siguientes|Ver resultados nuevos/ })).toHaveCount(0);
 });
 
-test("result pagination keeps its cutoff and ignores an obsolete detail response", async ({ page }) => {
-  let sequence = "2";
+test("result stream ignores an obsolete detail response", async ({ page }) => {
+  let sequence = "1";
   let firstDetail;
   const queries = [];
   await page.route("**/playground/api/v2/executions", route => route.fulfill({ status: 202, json: { id, status: "pending" } }));
@@ -121,7 +146,7 @@ test("result pagination keeps its cutoff and ignores an obsolete detail response
     const query = new URL(route.request().url()).searchParams;
     queries.push({ after: query.get("after"), through: query.get("through") });
     const second = query.get("after") === "1";
-    return route.fulfill({ json: { results: [{ nodeId: second ? "second" : "first", root: second ? "second" : "first", status: "completed" }], nextCursor: second ? "2" : "1", hasMore: !second, terminal: false } });
+    return route.fulfill({ json: { results: [{ nodeId: second ? "second" : "first", root: second ? "second" : "first", status: "completed" }], nextCursor: second ? "2" : "1", hasMore: false, terminal: false } });
   });
   await page.route(`**${endpoint}/results/first`, route => { firstDetail = route; });
   await page.route(`**${endpoint}/results/second`, route => route.fulfill({ json: { data: "second result", complete: true } }));
@@ -129,17 +154,14 @@ test("result pagination keeps its cutoff and ignores an obsolete detail response
   await page.locator("#execute").click();
   await page.locator(".v2-result-list button").click();
   await expect.poll(() => Boolean(firstDetail)).toBe(true);
-  sequence = "3";
-  await expect(page.getByRole("button", { name: "Hay 1 resultados nuevos. Ver resultados nuevos" })).toBeVisible();
-  await page.getByRole("button", { name: "Resultados siguientes" }).click();
+  sequence = "2";
   await expect(page.locator(".v2-result-list")).toContainText("second");
-  await page.locator(".v2-result-list button").click();
+  await page.locator(".v2-result-list button").last().click();
   await expect(page.locator(".v2-result-detail")).toContainText("second result");
   await firstDetail.fulfill({ json: { data: "obsolete first result", complete: true } }).catch(() => {});
   await expect(page.locator(".v2-result-detail")).not.toContainText("obsolete first result");
-  await page.getByRole("button", { name: "Resultados anteriores" }).click();
   await expect(page.locator(".v2-result-list")).toContainText("first");
-  expect(queries).toEqual([{ after: "0", through: "2" }, { after: "1", through: "2" }, { after: "0", through: "2" }]);
+  expect(queries.slice(0, 2)).toEqual([{ after: "0", through: "1" }, { after: "1", through: "2" }]);
 });
 
 test("v2 lazy tree, bounded chunks and exact readonly scalar JSON", async ({

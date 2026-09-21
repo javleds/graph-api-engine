@@ -30,8 +30,7 @@ export function createV2Viewer(host) {
         diagnostic.open = true;
         return legacy.update(url, status, signal);
       }
-      await results.update(url, status, signal);
-      return false;
+      return results.update(url, status, signal);
     },
     cancel() { legacy.cancel(); results.cancel(); },
     reset() {
@@ -287,42 +286,22 @@ function createResultsViewer(host, browse) {
   let generation = 0;
   let pageRequest;
   let detailRequest;
-  let cutoff = "0";
+  let renderedCursor = "0";
   let latestSequence = "0";
-  let after = "0";
-  let nextCursor = "0";
-  let history = [];
   let initialized = false;
   const summary = element("p", "hint");
   const webhookSummary = element("p", "hint");
   summary.setAttribute("aria-live", "polite");
-  const notice = action("Ver resultados nuevos", () => {
-    cutoff = latestSequence;
-    after = "0";
-    history = [];
-    loadPage();
-  });
-  notice.hidden = true;
-  const previous = action("Resultados anteriores", () => {
-    after = history.pop() ?? "0";
-    loadPage();
-  });
-  const next = action("Resultados siguientes", () => {
-    history.push(after);
-    after = nextCursor;
-    loadPage();
-  });
-  const nav = element("div", "actions");
-  nav.append(previous, next, notice);
   const rows = element("ul", "v2-result-list");
   rows.setAttribute("aria-label", "Resultados completos");
   const error = element("p", "message");
   error.setAttribute("role", "alert");
-  const retry = action("Reintentar consulta de resultados", () => loadPage());
+  error.hidden = true;
+  const retry = action("Reintentar consulta de resultados", () => loadNextPage(undefined, true));
   retry.hidden = true;
   const detail = element("section", "v2-result-detail");
   detail.setAttribute("aria-label", "Detalle del resultado");
-  host.append(element("h3", "", "Resultados"), summary, webhookSummary, nav, error, retry, rows, detail);
+  host.append(element("h3", "", "Resultados"), summary, webhookSummary, error, retry, rows, detail);
 
   function cancel() {
     generation++;
@@ -333,54 +312,58 @@ function createResultsViewer(host, browse) {
     cancel();
     base = "";
     initialized = false;
-    cutoff = latestSequence = after = nextCursor = "0";
-    history = [];
+    renderedCursor = latestSequence = "0";
     rows.replaceChildren();
     detail.replaceChildren();
     error.textContent = "";
+    error.hidden = true;
     retry.hidden = true;
-    previous.disabled = next.disabled = true;
-    notice.hidden = true;
   }
-  async function loadPage(signal) {
+  function append(item) {
+    const empty = rows.querySelector(".v2-results-empty");
+    empty?.remove();
+    const row = document.createElement("li");
+    row.dataset.nodeId = item.nodeId;
+    row.append(action(`${item.root || item.path || "Nodo"}${item.index != null ? ` [${item.index}]` : ""} · ${item.status}`, () => select(item)));
+    if (item.errorSummary?.total) row.append(element("p", "hint", `${item.errorSummary.total} errores en esta cadena`));
+    rows.append(row);
+    while (rows.children.length > 200) rows.firstElementChild.remove();
+  }
+  function showEmpty(terminal) {
+    if (rows.children.length) return;
+    rows.append(element("li", "hint v2-results-empty", terminal ? "No hay cadenas completas. Una colección vacía o una ejecución interrumpida puede no producir resultados." : "Esperando la primera cadena completa…"));
+  }
+  async function loadNextPage(signal, force = false) {
+    if (!base || (!force && initialized && BigInt(renderedCursor) >= BigInt(latestSequence))) return false;
     pageRequest?.abort();
     const request = new AbortController();
     pageRequest = request;
     const current = generation;
     const abort = () => request.abort();
     signal?.addEventListener("abort", abort, { once: true });
-    previous.disabled = next.disabled = true;
     try {
-      const query = new URLSearchParams({ after, limit: "50", through: cutoff });
+      const query = new URLSearchParams({ after: renderedCursor, limit: "50", through: latestSequence });
       const response = await fetch(`${base}/results?${query}`, { signal: request.signal, cache: "no-store" });
       if (!response.ok) throw new Error(`Resultados: HTTP ${response.status}`);
       const data = await response.json();
       if (current !== generation || request.signal.aborted) return;
-      // A zero cutoff means latest at read time; a result may close after status was read.
-      cutoff = data.lastSequence ?? cutoff;
-      if (BigInt(cutoff) > BigInt(latestSequence)) latestSequence = cutoff;
+      initialized = true;
+      if (BigInt(data.lastSequence ?? "0") > BigInt(latestSequence)) latestSequence = data.lastSequence;
       error.textContent = "";
+      error.hidden = true;
       retry.hidden = true;
       const items = data.results ?? [];
-      initialized = initialized || items.length > 0;
-      nextCursor = data.nextCursor;
-      previous.disabled = history.length === 0;
-      next.disabled = !data.hasMore;
-      rows.replaceChildren();
-      for (const item of items) {
-        const row = document.createElement("li");
-        row.dataset.nodeId = item.nodeId;
-        row.append(action(`${item.root || item.path || "Nodo"}${item.index != null ? ` [${item.index}]` : ""} · ${item.status}`, () => select(item)));
-        if (item.errorSummary?.total) row.append(element("p", "hint", `${item.errorSummary.total} errores en esta cadena`));
-        rows.append(row);
-      }
-      if (!items.length) rows.append(element("li", "hint", data.terminal ? "No hay cadenas completas. Una colección vacía o una ejecución interrumpida puede no producir resultados." : "Esperando la primera cadena completa…"));
-      notice.hidden = latestSequence === cutoff;
+      for (const item of items) append(item);
+      renderedCursor = data.nextCursor ?? renderedCursor;
+      showEmpty(data.terminal);
+      return data.hasMore || BigInt(renderedCursor) < BigInt(latestSequence);
     } catch (cause) {
       if (current === generation && cause.name !== "AbortError") {
         error.textContent = cause.message;
+        error.hidden = false;
         retry.hidden = false;
       }
+      return false;
     } finally {
       signal?.removeEventListener("abort", abort);
     }
@@ -451,12 +434,7 @@ function createResultsViewer(host, browse) {
     const deliveries = status.nodeWebhookSummary;
     webhookSummary.hidden = !deliveries;
     if (deliveries) webhookSummary.textContent = `Webhooks de nodos: ${deliveries.pending} pendientes · ${deliveries.delivered} entregados · ${deliveries.failed} fallidos. La entrega no cambia el estado del resultado.`;
-    notice.hidden = !initialized || latestSequence === cutoff;
-    if (!notice.hidden) notice.textContent = `Hay ${BigInt(latestSequence) - BigInt(cutoff)} resultados nuevos. Ver resultados nuevos`;
-    if (!initialized) {
-      cutoff = latestSequence;
-      await loadPage(signal);
-    }
+    return loadNextPage(signal);
   }
   reset();
   return { update, reset, cancel };

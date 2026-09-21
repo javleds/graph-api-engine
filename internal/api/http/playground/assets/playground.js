@@ -104,7 +104,7 @@ function loadExample(id) {
   $("execution-version").value = selected.version;
   $("request").value = JSON.stringify(selected.request, null, 2);
   $("request").dispatchEvent(new Event("input"));
-  message(selected.message);
+  message(selected.message, "info");
 }
 const initialExample = new URLSearchParams(location.search).get("example");
 if (initialExample) {
@@ -124,9 +124,16 @@ let rawResponse = null;
 let treeAvailable = false;
 const exchanges = new Map();
 
-function message(text = "") {
+function message(text = "", kind = "error") {
   elements.message.textContent = text;
   elements.message.hidden = !text;
+  if (!text) {
+    delete elements.message.dataset.kind;
+    elements.message.setAttribute("role", "alert");
+    return;
+  }
+  elements.message.dataset.kind = kind;
+  elements.message.setAttribute("role", kind === "error" ? "alert" : "status");
 }
 function setTracking(active, text) {
   tracking = active;

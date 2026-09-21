@@ -33,10 +33,27 @@ test('documentation and Pokémon example are available after login', async ({ pa
   await page.getByLabel('Buscar parámetro de request').fill('children');
   await expect(page.locator('.request-table')).toContainText('calls[].children');
   await page.goto('/examples');
-  await page.getByRole('button', { name: /Inténtalo en playground/ }).click();
-  await expect(page).toHaveURL(/\/playground\?example=pokemon$/);
+  await expect(page.locator('.examples-grid article')).toHaveCount(3);
+  const examplesFitTheirCards = await page.locator('.examples-grid article').evaluateAll((cards) => cards.every((card) => {
+    const code = card.querySelector('pre');
+    return code && code.getBoundingClientRect().right <= card.getBoundingClientRect().right;
+  }));
+  expect(examplesFitTheirCards).toBe(true);
+  await page.getByRole('button', { name: 'Replay V1 →' }).click();
+  await expect(page).toHaveURL(/\/playground\?example=pokemon-v1-webhook$/);
   await expect(page.locator('#request')).toHaveValue(/pokeapi\.co/);
   await expect(page.locator('#request')).toHaveValue(/pokemon_entries/);
+});
+
+test('replaying an example presents a positive loading state', async ({ page }) => {
+  await login(page);
+  await page.goto('/examples');
+  await page.getByRole('button', { name: 'Replay V1 →' }).click();
+  const message = page.locator('#message');
+  await expect(message).toHaveAttribute('role', 'status');
+  await expect(message).toHaveAttribute('data-kind', 'info');
+  await expect(message).toHaveCSS('background-color', 'rgb(9, 40, 58)');
+  await expect(message).toContainText('Ejemplo V1 con webhook local cargado');
 });
 
 test('results documentation compares API and webhook behavior with an accessible version selector', async ({ page }) => {
