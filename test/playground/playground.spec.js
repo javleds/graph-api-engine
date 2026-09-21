@@ -60,7 +60,7 @@ test('invalid JSON never creates a job', async ({ page }) => {
   expect(calls).toBe(0);
 });
 
-test('cache clearing uses a PrimeVue confirmation and toast notification', async ({ page }) => {
+test('cache clearing uses a PrimeVue confirmation and toast notification', async ({ page }, testInfo) => {
   let calls = 0;
   await page.route('**/playground/api/cache/clear', route => {
     calls++;
@@ -72,6 +72,8 @@ test('cache clearing uses a PrimeVue confirmation and toast notification', async
   await expect(dialog).toContainText('afecta a todos los usuarios');
   await expect(dialog).toHaveCSS('background-color', 'rgb(16, 27, 50)');
   await expect(dialog.locator('xpath=..')).toHaveCSS('background-color', 'rgba(5, 12, 25, 0.72)');
+  await expect(dialog.locator('[data-pc-section="content"]')).toHaveCSS('padding-left', testInfo.project.name === 'mobile' ? '20px' : '24px');
+  await expect(dialog.locator('.cache-clear-dialog__actions')).toHaveCSS('flex-direction', testInfo.project.name === 'mobile' ? 'column' : 'row');
   await dialog.getByRole('button', { name: 'Limpiar caché', exact: true }).click();
   const toast = page.getByRole('alert');
   await expect(toast).toContainText('Caché limpiada: 7 entradas eliminadas.');

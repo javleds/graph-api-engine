@@ -121,32 +121,42 @@ onBeforeUnmount(() => window.removeEventListener('playground:clear-cache', open)
 .cache-clear-dialog {
   background: #101b32;
   border: 1px solid #345078;
-  border-radius: 0.75rem;
-  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 45%);
+  border-radius: 1rem;
+  box-shadow: 0 1.75rem 4.5rem rgb(0 0 0 / 48%);
   color: #e8f0ff;
-  max-width: 32rem;
+  max-width: 34rem;
+  overflow: hidden;
   width: 100%;
 }
 
 .cache-clear-dialog .p-dialog-header,
-.cache-clear-dialog .p-dialog-content,
-.cache-clear-dialog .p-dialog-footer {
-  padding: 1.25rem;
-}
-
-.cache-clear-dialog .p-dialog-header {
+.cache-clear-dialog [data-pc-section='header'] {
+  align-items: center;
   border-bottom: 1px solid #29415f;
+  display: flex;
+  font-size: 1.125rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 1.5rem 1.5rem 1.15rem;
 }
 
-.cache-clear-dialog .p-dialog-footer {
+.cache-clear-dialog .p-dialog-content,
+.cache-clear-dialog [data-pc-section='content'] {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.cache-clear-dialog .p-dialog-footer,
+.cache-clear-dialog [data-pc-section='footer'] {
+  background: rgb(5 12 25 / 24%);
   border-top: 1px solid #29415f;
+  padding: 1rem 1.5rem 1.5rem;
 }
 
 .cache-clear-dialog__message {
   color: #c7d6eb;
   line-height: 1.55;
   margin: 0;
+  max-width: 56ch;
 }
 
 .cache-clear-dialog__actions {
@@ -159,7 +169,18 @@ onBeforeUnmount(() => window.removeEventListener('playground:clear-cache', open)
   border-radius: 0.4rem;
   cursor: pointer;
   font: inherit;
-  padding: 0.6rem 0.9rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.cache-clear-dialog__actions button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.cache-clear-dialog__actions button:focus-visible {
+  outline: 3px solid #8bb9ed;
+  outline-offset: 2px;
 }
 
 .cache-clear-dialog__cancel {
@@ -177,6 +198,38 @@ onBeforeUnmount(() => window.removeEventListener('playground:clear-cache', open)
 .cache-clear-dialog__actions button:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+@media (max-width: 40rem) {
+  .p-dialog-mask,
+  [data-pc-section='mask'][data-p~='modal'] {
+    align-items: flex-end;
+    padding: 0.75rem;
+  }
+
+  .cache-clear-dialog .p-dialog-header,
+  .cache-clear-dialog [data-pc-section='header'] {
+    padding: 1.25rem 1.25rem 1rem;
+  }
+
+  .cache-clear-dialog .p-dialog-content,
+  .cache-clear-dialog [data-pc-section='content'] {
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  .cache-clear-dialog .p-dialog-footer,
+  .cache-clear-dialog [data-pc-section='footer'] {
+    padding: 0.9rem 1.25rem 1.25rem;
+  }
+
+  .cache-clear-dialog__actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .cache-clear-dialog__actions button {
+    width: 100%;
+  }
 }
 
 .p-toast,
