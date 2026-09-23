@@ -33,9 +33,10 @@ func newRootCommand() *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(*cobra.Command, []string) error {
-			return fmt.Errorf("usage: api-engine serve --config config.yml | validate --file definition.json | migrate --config config.yml | version")
+			return fmt.Errorf("usage: api-engine init | serve --config config.yml | validate --file definition.json | migrate --config config.yml | version")
 		},
 	}
+	command.AddCommand(newInitCommand())
 	command.AddCommand(newServeCommand("serve", false))
 	command.AddCommand(newServeCommand("migrate", true))
 	command.AddCommand(&cobra.Command{

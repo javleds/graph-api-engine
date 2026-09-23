@@ -1,6 +1,8 @@
 # Configurar y arrancar el servicio
 
-Copiar `.env.example` como `.env`. `APP_URL` define la URL pública y `APP_PORT` define el puerto del proceso y de Compose. El archivo contiene las credenciales del playground; no debe versionarse.
+Desde la raíz del repositorio y después de compilar, ejecutar `./bin/api-engine init`. El comando crea los archivos locales faltantes: `.env` desde `.env.example`, `config/config.yml` desde `config/config.example.yml`, y las dos claves de 32 bytes más `secrets/engine-principals.json`. Imprime el bearer token del principal `local-developer` sólo al crear el archivo de principals; guardarlo en un gestor de secretos. Nunca lo guarda en texto plano y no sobrescribe archivos existentes, por lo que es seguro volver a ejecutarlo.
+
+`APP_URL` define la URL pública y `APP_PORT` define el puerto del proceso y de Compose. El archivo contiene las credenciales del playground; no debe versionarse.
 
 `config/config.yml` es la configuración de operador. Usa interpolación `${VARIABLE}` para consumir `.env`. Las listas `security.egress.upstreamAllowedOrigins` y `webhookAllowedOrigins` aceptan URLs exactas, `https://*.example.com` y `*`; HTTP requiere `allowHTTPForDevelopment: true` y las IP privadas siguen restringidas por CIDR.
 

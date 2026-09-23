@@ -21,7 +21,9 @@ Los tests usan SQLite temporal y proveedores locales controlados; no requieren c
 
 ## Configuración y secretos
 
-Copiar `config/config.example.yml` a `config/config.yml` y ajustar rutas locales, URL pública y allowlists de proveedores y webhooks. El ejemplo contiene valores ilustrativos y no es una configuración lista para producción. Consultar §21 del spec para todos los campos y defaults.
+Después de compilar, ejecutar `./bin/api-engine init` desde la raíz del repositorio. Crea `secrets/` con permisos restringidos, copia `.env.example` a `.env` y `config/config.example.yml` a `config/config.yml`, y genera las claves y un principal local. Guarda el bearer token que imprime el comando: se muestra sólo en la primera creación y no se guarda en texto plano. El inicializador no sobrescribe archivos existentes; revisar y ajustar `.env` y `config/config.yml` antes de iniciar el servicio.
+
+El ejemplo contiene valores ilustrativos y no es una configuración lista para producción. Consultar §21 del spec para todos los campos y defaults.
 
 Los archivos de identidad y cifrado contienen **32 bytes binarios aleatorios**, cada uno generado independientemente. Guardarlos fuera del repositorio, accesibles solo al operador y al UID del runtime. `activeKeyId` identifica la clave de cifrado vigente; conservar las claves anteriores para leer registros durante rotación. La clave de identidad debe permanecer estable para mantener scopes e idempotencia.
 
