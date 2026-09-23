@@ -25,4 +25,30 @@ curl http://localhost:8080/health/ready
 
 Abrir `/login`, iniciar sesión y continuar hacia `/playground`. El proceso también puede iniciarse directamente con `./bin/api-engine serve --config config/config.yml`.
 
+## Caché de respuestas upstream
+
+La sección de operador `cache` define **capacidad y seguridad**, no activa caché para todos los requests. El consumidor decide por grafo si reutiliza respuestas con `definition.api.cache: { ttl: "5m" }` o por nodo con `calls[].cache`. Cada entrada conserva la respuesta HTTP base cifrada; el resultado enriquecido de una ejecución no se guarda como una entrada de caché.
+
+`maxEntryBytes` rechaza sólo el almacenamiento de respuestas grandes: la ejecución todavía puede usar la respuesta si respeta los demás límites. `maxEntries` y `maxLogicalBytes` son presupuestos globales; al alcanzarlos se expulsan entradas antiguas. `maxTTL` es el techo que un consumidor puede pedir, no un TTL predeterminado. Para invalidar todas las respuestas almacenadas, un principal con `cache:clear` usa `POST /v1/cache/clear` o `POST /v2/cache/clear`; afecta a todos los consumidores de esta instancia.
+
+## Cuotas compartidas y concurrencia
+
+`fetch.maxConcurrentHTTPRequests` es el techo global de requests upstream simultáneos de la instancia. Es distinto de `api.limits`: el request declara la cuota conocida de un proveedor y el engine aplica pacing a cada intento físico, incluidos retries y paginación. Un `429` o `Retry-After` publica un cooldown para el scope afectado, por lo que las demás ejecuciones que lo comparten esperan; el cooldown se conserva en SQLite al reiniciar.
+
+Por defecto la cuota se comparte por origin y credencial upstream. Si el proveedor limita por cuenta, IP, varias API keys o varios origins, declarar un grupo del operador para que todos cumplan la misma restricción:
+
+```yaml
+throttle:
+  quotaGroups:
+    - name: proveedor-principal
+      origins: ["https://api.proveedor.example"]
+      credentialMode: shared
+      limits:
+        requests: 100
+        per: "1m"
+        concurrency: 4
+```
+
+Con `credentialMode: shared`, todas las credenciales usadas contra esos origins comparten la cuota. Con `separate` —el default— cada credencial tiene su cuota propia. El grupo añade una restricción: si un request declara `200/1m` y el grupo declara `100/1m`, ambas se aplican y el tráfico queda limitado por la más restrictiva. Dos instancias con directorios de datos diferentes no comparten pacing; antes de escalar horizontalmente se necesita una coordinación distribuida.
+
 Para invalidar la caché de forma controlada, conceder el permiso `cache:clear` a los principals de API seleccionados y usar las rutas versionadas documentadas. Las sesiones autenticadas del playground también pueden vaciar la caché compartida de respuestas tras una confirmación; consultar [Mantenimiento de caché](cache-maintenance.md).

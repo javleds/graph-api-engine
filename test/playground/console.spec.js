@@ -29,9 +29,14 @@ test('documentation and Pokémon example are available after login', async ({ pa
   await page.getByLabel('Buscar propiedad de configuración').fill('authenticationEnabled');
   await expect(page.locator('.configuration-section')).toContainText('security.authenticationEnabled');
   await expect(page.locator('.configuration-section')).not.toContainText('PLAYGROUND_PASSWORD');
+  await page.getByLabel('Buscar propiedad de configuración').fill('quotaGroups');
+  await expect(page.locator('.configuration-section')).toContainText('varios tokens o varios orígenes');
+  await expect(page.locator('.service-guide')).toContainText('Cuotas compartidas y concurrencia');
+  await expect(page.locator('.service-guide')).toContainText('credentialMode: shared');
   await page.getByRole('tab', { name: 'Consumo de grafos' }).click();
-  await page.getByLabel('Buscar parámetro de request').fill('children');
-  await expect(page.locator('.request-table')).toContainText('calls[].children');
+  await page.getByLabel('Buscar parámetro de request').fill('calls[].cache');
+  await expect(page.locator('.request-table')).toContainText('no lee ni escribe caché');
+  await expect(page.locator('.service-guide')).toContainText('La deduplicación de requests simultáneas puede seguir activa');
   await page.goto('/examples');
   await expect(page.locator('.examples-grid article')).toHaveCount(3);
   const examplesFitTheirCards = await page.locator('.examples-grid article').evaluateAll((cards) => cards.every((card) => {

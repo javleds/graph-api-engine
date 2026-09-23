@@ -1,6 +1,8 @@
 # Configure and start the service
 
-Copy `.env.example` to `.env`. `APP_URL` sets the public URL and `APP_PORT` sets the process and Compose port. The file contains playground credentials and must not be committed.
+After building, run `./bin/api-engine init` from the repository root. It creates missing local files: `.env` from `.env.example`, `config/config.yml` from `config/config.example.yml`, two independent 32-byte keys, and `secrets/engine-principals.json`. It prints the `local-developer` bearer token only when it creates the principals file; store it in a secret manager. It never stores that token in plaintext and never overwrites existing files, so it is safe to run again.
+
+`APP_URL` sets the public URL and `APP_PORT` sets the process and Compose port. The file contains playground credentials and must not be committed.
 
 `config/config.yml` is the operator configuration. Use `${VARIABLE}` interpolation to consume `.env`. Egress allowlists accept exact URLs, `https://*.example.com`, and `*`; HTTP requires `allowHTTPForDevelopment: true`, and private IPs remain restricted by CIDR.
 
@@ -20,5 +22,31 @@ curl http://localhost:8080/health/ready
 ```
 
 Open `/login`, sign in, and continue to `/playground`. The process can also be started directly with `./bin/api-engine serve --config config/config.yml`.
+
+## Upstream response cache
+
+The operator `cache` section controls **capacity and safety**; it does not enable caching for every request. A consumer decides whether to reuse responses per graph with `definition.api.cache: { ttl: "5m" }` or per node with `calls[].cache`. Each entry contains the encrypted base HTTP response, not the enriched execution result.
+
+`maxEntryBytes` rejects only cache storage for a large response: the execution may still use that response when it meets other limits. `maxEntries` and `maxLogicalBytes` are global budgets; older entries are evicted when either is reached. `maxTTL` is the longest freshness duration a consumer may request, not a default TTL. To invalidate every stored response, a principal with `cache:clear` can call `POST /v1/cache/clear` or `POST /v2/cache/clear`; this affects every consumer of this instance.
+
+## Shared quotas and concurrency
+
+`fetch.maxConcurrentHTTPRequests` is the instance-wide ceiling for upstream requests in flight. It is different from `api.limits`: a request declares the known provider quota and the engine paces every physical attempt, including retries and pagination. A `429` or `Retry-After` publishes a cooldown for the affected scope, so other executions sharing it wait; the cooldown is retained in SQLite across a restart.
+
+By default, a quota is shared by upstream origin and credential. If the provider limits by account, IP, multiple API keys, or multiple origins, declare an operator group so all consumers obey one restriction:
+
+```yaml
+throttle:
+  quotaGroups:
+    - name: primary-provider
+      origins: ["https://api.provider.example"]
+      credentialMode: shared
+      limits:
+        requests: 100
+        per: "1m"
+        concurrency: 4
+```
+
+With `credentialMode: shared`, every credential against those origins shares the quota. With `separate` —the default— each credential has its own quota. A group adds a restriction: if a request declares `200/1m` and the group declares `100/1m`, both apply and traffic is constrained by the stricter limit. Two instances with separate data directories do not share pacing; horizontal scaling needs distributed coordination first.
 
 For controlled cache invalidation, grant selected API principals the `cache:clear` permission and use the documented versioned routes. Authenticated playground sessions can also clear the shared response cache after a confirmation prompt; see [Cache maintenance](cache-maintenance.en.md).
