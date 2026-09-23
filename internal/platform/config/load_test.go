@@ -74,7 +74,7 @@ func TestDefaultsRequireDeploymentSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.Executions.MaxConcurrent != 4 || config.HTTP.Address != ":8080" {
+	if config.Executions.MaxConcurrent != 4 || config.Fetch.MaxConcurrentHTTPRequests != 10 || config.HTTP.Address != ":8080" {
 		t.Fatal("defaults missing")
 	}
 }

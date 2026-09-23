@@ -15,5 +15,5 @@ type ValidationLimits struct {
 }
 
 func DefaultValidationLimits() ValidationLimits {
-	return ValidationLimits{MaxDefinitionDepth: 8, MaxDefinitionNodes: 128, MaxChildrenPerNode: 16, MaxRootCalls: 16, HTTPConcurrency: 20, MaxTTL: 30 * 24 * time.Hour}
+	return ValidationLimits{MaxDefinitionDepth: 8, MaxDefinitionNodes: 128, MaxChildrenPerNode: 16, MaxRootCalls: 16, HTTPConcurrency: 10, MaxTTL: 30 * 24 * time.Hour}
 }
