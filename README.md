@@ -81,6 +81,10 @@ La depuración muestra el request enviado y las respuestas HTTP de creación, es
 
 Los endpoints del playground requieren la cookie de sesión emitida por login y usan el owner reservado `system:playground`. `/v1/executions` y `/v2/executions` siguen usando Bearer tokens y no permiten leer estos jobs con otro owner. Las cuotas, límites, validación y egress siguen aplicando; el token de sesión nunca se expone al JavaScript.
 
+### Licencia de PrimeVue 5
+
+El playground usa componentes básicos de PrimeVue 5, que requieren una clave PrimeUI válida, Community o Commercial. Configurar `VITE_PRIMEUI_LICENSE_KEY` en `.env` antes de compilar el frontend. Para Docker Compose, ejecutar `docker compose build api-engine` después de configurar la variable; para desarrollo local, ejecutar `npm run build:web` antes de compilar el binario Go. Vite incorpora la clave en los assets del navegador durante el build: cambiar `.env` o la variable del contenedor después no actualiza un binario ya compilado. Obtener una clave para el desarrollador o equipo según las [condiciones oficiales](https://primeui.dev/licenses/community). No guardar claves personales en Git ni confirmar assets generados con una clave personal.
+
 En v1 los webhooks mantienen su formato y links `/v1`; estos no dan acceso anónimo al resultado. Para una ejecución del playground, consultar su ID desde la página o `/playground/api/executions/{id}`. Los assets se incluyen en el binario y contenedor, sin CDN ni proceso frontend adicional. Navegadores sin soporte para conservar los literales numéricos usan raw para evitar redondear IDs grandes.
 
 Pruebas de navegador (Node.js 22 o posterior, solo desarrollo):

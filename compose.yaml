@@ -1,7 +1,10 @@
 services:
   # Owns the HTTP API and local worker; databases remain on this instance's volume.
   api-engine:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_PRIMEUI_LICENSE_KEY: ${VITE_PRIMEUI_LICENSE_KEY:-}
     command: ["serve", "--config", "/etc/api-engine/config.yml"]
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:${APP_PORT:-8080}"

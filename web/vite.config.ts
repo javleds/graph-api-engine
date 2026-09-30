@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   root: 'web',
+  envDir: '..',
   base: '/web/assets/',
   plugins: [vue()],
   build: {
