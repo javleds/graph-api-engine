@@ -325,7 +325,7 @@ Se valida `executions.maxRootCalls` antes de aceptar el job. Las raíces se proc
 | `pagination` | No | Solo válido para `collection`. |
 | `children` | No | Array de nodos que enriquecen cada valor seleccionado. Default `[]`. |
 | `limits` | No | Restricción del endpoint, adicional a las de API y del servidor. |
-| `cache` | No | `false` o un objeto con `ttl`. Hereda la política efectiva de su ancestro más cercano. |
+| `cache` | No | `false` o un objeto con `ttl` y `ignoreServerCachePolicy` opcional. Hereda la política efectiva de su ancestro más cercano. |
 
 `name` cumple `^[A-Za-z_][A-Za-z0-9_]*$`, máximo 64 caracteres. `parent` se reserva como nombre de contexto y no se acepta como nombre de nodo.
 
@@ -2057,6 +2057,7 @@ La caché es un memoizador privado y particionado del engine, no una implementac
 | `private` | Solo se considera dentro del owner y credencial aislados; nunca se comparte entre consumidores. |
 | `max-age` / `Expires` aplicables | Restringir el TTL efectivo; nunca ampliar la frescura autorizada. |
 | `Age` / `Date` válidos | Considerar edad ya acumulada al calcular frescura. |
+| `ignoreServerCachePolicy: true` | Ignorar `Cache-Control`, `Expires`, `Age` y `Date`; usar el TTL solicitado desde la obtención, sujeto a `cache.maxTTL`. Mantener las restricciones de `Set-Cookie` y `Vary: *`. |
 | `429`, `4xx`, `5xx` | No almacenar como éxito. |
 | JSON inválido, body truncado o excedido | No almacenar. |
 
@@ -3983,6 +3984,9 @@ El schema valida estructura y tipos; los límites de profundidad del árbol, ref
           "properties": {
             "ttl": {
               "$ref": "#/$defs/duration"
+            },
+            "ignoreServerCachePolicy": {
+              "type": "boolean"
             }
           },
           "required": [

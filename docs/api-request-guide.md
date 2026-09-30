@@ -248,6 +248,9 @@ Las duraciones usan un entero positivo y una sola unidad: `250ms`, `1s`, `5m`, `
 | Omitida en un nodo | Hereda del padre, o de `api` si es raíz. |
 | `false` | No lee ni escribe caché para ese nodo; sus descendientes heredan esta política salvo override. |
 | `{ "ttl": "5m" }` | Habilita caché con esa exigencia de frescura. |
+| `{ "ttl": "5m", "ignoreServerCachePolicy": true }` | Usa el TTL solicitado aunque `Cache-Control`, `Expires`, `Age` o `Date` del proveedor indiquen otra política. |
+
+`ignoreServerCachePolicy` es opcional y por defecto es `false`. Se puede declarar en `api.cache` o en `calls[].cache`; un objeto de caché en un nodo reemplaza la política heredada. El override no ignora `Set-Cookie`, `Vary: *`, la exigencia de respuesta `200` con JSON válido ni `cache.maxTTL`. Sus entradas quedan separadas de las creadas sin override.
 
 `true`, `null` y `{}` no son políticas válidas. Se cachea la respuesta HTTP base, no el árbol enriquecido; cada hijo se evalúa con su propia política. Headers del proveedor y límites operativos pueden impedir almacenar/reutilizar una respuesta. La deduplicación de requests simultáneas puede seguir activa aunque `cache` sea `false`.
 

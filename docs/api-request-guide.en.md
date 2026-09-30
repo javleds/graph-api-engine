@@ -184,6 +184,9 @@ Durations use one positive integer and unit: `250ms`, `1s`, `5m`, `2h`, or `7d`.
 | Omitted in a node | Inherits from its parent, or from `api` for a root. |
 | `false` | Does not read or write cache for that node; descendants inherit this policy unless they override it. |
 | `{ "ttl": "5m" }` | Enables caching with that response-freshness requirement. |
+| `{ "ttl": "5m", "ignoreServerCachePolicy": true }` | Uses the requested TTL even when the provider's `Cache-Control`, `Expires`, `Age`, or `Date` headers specify another policy. |
+
+`ignoreServerCachePolicy` is optional and defaults to `false`. It can be set in `api.cache` or `calls[].cache`; a cache object on a node replaces the inherited policy. The override does not bypass `Set-Cookie`, `Vary: *`, the requirement for a valid JSON `200` response, or `cache.maxTTL`. Its entries are separate from entries created without the override.
 
 `true`, `null`, and `{}` are not valid cache policies. The engine caches the base HTTP response, not the enriched graph; each child evaluates its own policy. Provider headers and operational limits may prevent a response from being stored or reused. Deduplication of identical simultaneous requests can remain active even when `cache` is `false`.
 
