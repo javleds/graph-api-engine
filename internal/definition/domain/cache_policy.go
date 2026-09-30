@@ -3,6 +3,7 @@ package domain
 import "time"
 
 type CachePolicy struct {
-	Enabled bool
-	TTL     time.Duration
+	Enabled                 bool
+	TTL                     time.Duration
+	IgnoreServerCachePolicy bool
 }

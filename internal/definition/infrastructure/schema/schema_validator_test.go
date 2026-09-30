@@ -57,6 +57,17 @@ func TestSchemaContract(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCacheOverrideRequiresBoolean(t *testing.T) {
+	valid := strings.Replace(validInput, `"limits":{"requests":100,"per":"1m"}`, `"limits":{"requests":100,"per":"1m"},"cache":{"ttl":"5m","ignoreServerCachePolicy":true}`, 1)
+	if _, err := Parse([]byte(valid), 64); err != nil {
+		t.Fatal(err)
+	}
+	invalid := strings.Replace(valid, `"ignoreServerCachePolicy":true`, `"ignoreServerCachePolicy":"true"`, 1)
+	if _, err := Parse([]byte(invalid), 64); err == nil {
+		t.Fatal("accepted non-boolean cache override")
+	}
+}
 func TestEmbeddedSchemaEqualsSource(t *testing.T) {
 	for _, path := range []string{"../../../../contracts/create_execution_v1.schema.json", "../../../../api_request_schema.json"} {
 		source, err := os.ReadFile(path)

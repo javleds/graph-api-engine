@@ -82,7 +82,7 @@ func mapCache(cache *dto.CachePolicyDTO, inherited domain.CachePolicy) (domain.C
 	if err != nil {
 		return domain.CachePolicy{}, domain.Invalid("/cache/ttl", "invalid duration")
 	}
-	return domain.CachePolicy{Enabled: true, TTL: ttl}, nil
+	return domain.CachePolicy{Enabled: true, TTL: ttl, IgnoreServerCachePolicy: cache.IgnoreServerCachePolicy}, nil
 }
 func mapRate(rate dto.LimitsDTO) (domain.RatePolicy, error) {
 	result := domain.RatePolicy{Requests: rate.Requests, Concurrency: rate.Concurrency}

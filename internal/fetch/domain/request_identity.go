@@ -1,10 +1,11 @@
 package domain
 
 type RequestIdentity struct {
-	OwnerID            string
-	CredentialIdentity string
-	Method             string
-	URL                string
-	Headers            map[string][]string
-	BodyHash           string
+	OwnerID                 string
+	CredentialIdentity      string
+	Method                  string
+	URL                     string
+	Headers                 map[string][]string
+	BodyHash                string
+	IgnoreServerCachePolicy bool `json:"IgnoreServerCachePolicy,omitempty"`
 }

@@ -51,7 +51,7 @@ func RequestKey(secret []byte, input domain.FetchRequest) (string, error) {
 	}
 	headers["User-Agent"] = []string{"api-execution-engine/1.1"}
 	hash := sha256.Sum256(input.Request.Body)
-	identity := domain.RequestIdentity{OwnerID: input.OwnerID, CredentialIdentity: input.CredentialIdentity, Method: strings.ToUpper(input.Request.Method), URL: u.String(), Headers: headers, BodyHash: hex.EncodeToString(hash[:])}
+	identity := domain.RequestIdentity{OwnerID: input.OwnerID, CredentialIdentity: input.CredentialIdentity, Method: strings.ToUpper(input.Request.Method), URL: u.String(), Headers: headers, BodyHash: hex.EncodeToString(hash[:]), IgnoreServerCachePolicy: input.Policy.IgnoreServerCachePolicy}
 	data, err := json.Marshal(identity)
 	if err != nil {
 		return "", err

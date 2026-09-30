@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func CacheEntryFor(key string, response domain.RawResponse, ttl, maxTTL time.Duration, now time.Time) (domain.CacheEntry, bool) {
+func CacheEntryFor(key string, response domain.RawResponse, ttl, maxTTL time.Duration, ignoreServerCachePolicy bool, now time.Time) (domain.CacheEntry, bool) {
 	if response.StatusCode != 200 || !json.Valid(response.Body) || ttl <= 0 {
 		return domain.CacheEntry{}, false
 	}
@@ -22,36 +22,38 @@ func CacheEntryFor(key string, response domain.RawResponse, ttl, maxTTL time.Dur
 			return domain.CacheEntry{}, false
 		}
 	}
-	age := time.Duration(0)
-	if seconds, err := strconv.ParseInt(headers.Get("Age"), 10, 64); err == nil && seconds >= 0 {
-		if seconds > int64((1<<63-1)/int64(time.Second)) {
-			return domain.CacheEntry{}, false
-		}
-		age = time.Duration(seconds) * time.Second
-	}
-	if date, err := http.ParseTime(headers.Get("Date")); err == nil && now.Sub(date) > age {
-		age = now.Sub(date)
-	}
 	if maxTTL > 0 && ttl > maxTTL {
 		ttl = maxTTL
 	}
-	for _, directive := range strings.Split(strings.Join(headers.Values("Cache-Control"), ","), ",") {
-		pair := strings.SplitN(strings.TrimSpace(directive), "=", 2)
-		name := strings.ToLower(pair[0])
-		if name == "no-store" || name == "no-cache" {
-			return domain.CacheEntry{}, false
+	age := time.Duration(0)
+	if !ignoreServerCachePolicy {
+		if seconds, err := strconv.ParseInt(headers.Get("Age"), 10, 64); err == nil && seconds >= 0 {
+			if seconds > int64((1<<63-1)/int64(time.Second)) {
+				return domain.CacheEntry{}, false
+			}
+			age = time.Duration(seconds) * time.Second
 		}
-		if name == "max-age" {
-			if len(pair) != 2 {
+		if date, err := http.ParseTime(headers.Get("Date")); err == nil && now.Sub(date) > age {
+			age = now.Sub(date)
+		}
+		for _, directive := range strings.Split(strings.Join(headers.Values("Cache-Control"), ","), ",") {
+			pair := strings.SplitN(strings.TrimSpace(directive), "=", 2)
+			name := strings.ToLower(pair[0])
+			if name == "no-store" || name == "no-cache" {
 				return domain.CacheEntry{}, false
 			}
-			seconds, err := strconv.ParseInt(strings.Trim(pair[1], `"`), 10, 64)
-			if err != nil || seconds < 0 || seconds > int64((1<<63-1)/int64(time.Second)) {
-				return domain.CacheEntry{}, false
-			}
-			maximum := time.Duration(seconds) * time.Second
-			if maximum < ttl {
-				ttl = maximum
+			if name == "max-age" {
+				if len(pair) != 2 {
+					return domain.CacheEntry{}, false
+				}
+				seconds, err := strconv.ParseInt(strings.Trim(pair[1], `"`), 10, 64)
+				if err != nil || seconds < 0 || seconds > int64((1<<63-1)/int64(time.Second)) {
+					return domain.CacheEntry{}, false
+				}
+				maximum := time.Duration(seconds) * time.Second
+				if maximum < ttl {
+					ttl = maximum
+				}
 			}
 		}
 	}
@@ -60,8 +62,10 @@ func CacheEntryFor(key string, response domain.RawResponse, ttl, maxTTL time.Dur
 		return domain.CacheEntry{}, false
 	}
 	expires := now.Add(remaining)
-	if explicit, err := http.ParseTime(headers.Get("Expires")); err == nil && explicit.Before(expires) {
-		expires = explicit
+	if !ignoreServerCachePolicy {
+		if explicit, err := http.ParseTime(headers.Get("Expires")); err == nil && explicit.Before(expires) {
+			expires = explicit
+		}
 	}
 	if !expires.After(now) {
 		return domain.CacheEntry{}, false

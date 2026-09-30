@@ -276,6 +276,9 @@
           "properties": {
             "ttl": {
               "$ref": "#/$defs/duration"
+            },
+            "ignoreServerCachePolicy": {
+              "type": "boolean"
             }
           },
           "required": [

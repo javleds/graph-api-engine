@@ -54,7 +54,7 @@ func (s *CachingFetchService) Fetch(ctx context.Context, input domain.FetchReque
 			return domain.RawResponse{}, err
 		}
 		if input.Policy.CacheEnabled && s.Cache != nil {
-			if entry, ok := CacheEntryFor(key, result.Response, input.Policy.CacheTTL, s.MaxTTL, s.Clock.Now()); ok {
+			if entry, ok := CacheEntryFor(key, result.Response, input.Policy.CacheTTL, s.MaxTTL, input.Policy.IgnoreServerCachePolicy, s.Clock.Now()); ok {
 				s.cacheError(s.Cache.Put(workCtx, entry))
 			}
 		}

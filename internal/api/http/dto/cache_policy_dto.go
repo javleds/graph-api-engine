@@ -3,8 +3,9 @@ package dto
 import "encoding/json"
 
 type CachePolicyDTO struct {
-	Enabled bool
-	TTL     string
+	Enabled                 bool
+	TTL                     string
+	IgnoreServerCachePolicy bool
 }
 
 func (c *CachePolicyDTO) UnmarshalJSON(data []byte) error {
@@ -12,17 +13,31 @@ func (c *CachePolicyDTO) UnmarshalJSON(data []byte) error {
 		*c = CachePolicyDTO{}
 		return nil
 	}
-	var value map[string]string
+	*c = CachePolicyDTO{}
+	var value map[string]json.RawMessage
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
 	c.Enabled = true
-	c.TTL = value["ttl"]
+	if raw, ok := value["ttl"]; ok {
+		if err := json.Unmarshal(raw, &c.TTL); err != nil {
+			return err
+		}
+	}
+	if raw, ok := value["ignoreServerCachePolicy"]; ok {
+		if err := json.Unmarshal(raw, &c.IgnoreServerCachePolicy); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 func (c CachePolicyDTO) MarshalJSON() ([]byte, error) {
 	if !c.Enabled {
 		return []byte("false"), nil
 	}
-	return json.Marshal(map[string]string{"ttl": c.TTL})
+	value := map[string]any{"ttl": c.TTL}
+	if c.IgnoreServerCachePolicy {
+		value["ignoreServerCachePolicy"] = true
+	}
+	return json.Marshal(value)
 }

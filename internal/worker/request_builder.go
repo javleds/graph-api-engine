@@ -102,5 +102,6 @@ func (p *CallProcessor) buildRequest(ctx context.Context, call definition.Compil
 
 	result.Policy.CacheEnabled = call.Cache.Enabled
 	result.Policy.CacheTTL = call.Cache.TTL
+	result.Policy.IgnoreServerCachePolicy = call.Cache.IgnoreServerCachePolicy
 	return result, nil
 }

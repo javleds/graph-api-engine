@@ -3,13 +3,14 @@ package domain
 import "time"
 
 type FetchPolicy struct {
-	CacheEnabled     bool
-	CacheTTL         time.Duration
-	AttemptTimeout   time.Duration
-	OperationTimeout time.Duration
-	MaxAttempts      int
-	BaseDelay        time.Duration
-	MaxBackoff       time.Duration
+	CacheEnabled            bool
+	CacheTTL                time.Duration
+	IgnoreServerCachePolicy bool
+	AttemptTimeout          time.Duration
+	OperationTimeout        time.Duration
+	MaxAttempts             int
+	BaseDelay               time.Duration
+	MaxBackoff              time.Duration
 }
 
 func (p FetchPolicy) WithDefaults() FetchPolicy {

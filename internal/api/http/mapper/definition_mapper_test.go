@@ -25,7 +25,7 @@ func TestNormalization(t *testing.T) {
 	if root.Pointer != "/definition/calls/0" || root.RootIndex != 0 || root.Cache.TTL != time.Hour || root.Children[0].Cache.Enabled || root.Pagination.Start != 1 || !root.Pagination.Pages.All {
 		t.Fatalf("wrong defaults: %#v", root)
 	}
-	if compiled.API.Auth.Type != "none" || compiled.API.Limits.Concurrency != 20 {
+	if compiled.API.Auth.Type != "none" || compiled.API.Limits.Concurrency != application.DefaultValidationLimits().HTTPConcurrency {
 		t.Fatalf("wrong API defaults: %#v", compiled.API)
 	}
 	encoded, err := json.Marshal(compiled)
@@ -34,6 +34,21 @@ func TestNormalization(t *testing.T) {
 	}
 	if !strings.Contains(string(encoded), "References") {
 		t.Fatal("compiled references not persistable")
+	}
+}
+
+func TestCacheOverrideInheritsAndCanBeDisabled(t *testing.T) {
+	withOverride := strings.Replace(input, `"cache":{"ttl":"1h"}`, `"cache":{"ttl":"1h","ignoreServerCachePolicy":true}`, 1)
+	parsed, err := schema.Parse([]byte(withOverride), 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiled, err := Compile(parsed, application.DefaultValidationLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !compiled.Roots[0].Cache.IgnoreServerCachePolicy || compiled.Roots[0].Children[0].Cache.Enabled || compiled.Roots[0].Children[0].Cache.IgnoreServerCachePolicy {
+		t.Fatalf("incorrect inherited cache policy: %+v", compiled.Roots[0].Cache)
 	}
 }
 func TestSemanticFailures(t *testing.T) {

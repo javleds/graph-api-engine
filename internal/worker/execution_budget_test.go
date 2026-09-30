@@ -6,7 +6,24 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	definition "github.com/javleds/api-engine/internal/definition/domain"
 )
+
+func TestRequestUsesNodeCachePolicy(t *testing.T) {
+	root := call("root", "single", "/root")
+	root.Cache = definition.CachePolicy{Enabled: true, TTL: time.Minute, IgnoreServerCachePolicy: true}
+	graph := compiled(root)
+	processor := &CallProcessor{engine: &Engine{}, definition: graph, budget: &ExecutionBudget{}, progress: &progressCounters{}}
+	request, err := processor.buildRequest(context.Background(), root, NodeContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !request.Policy.CacheEnabled || request.Policy.CacheTTL != time.Minute || !request.Policy.IgnoreServerCachePolicy {
+		t.Fatalf("cache policy lost during request building: %+v", request.Policy)
+	}
+}
 
 func TestCanceledSubscriberCannotSpendItsExecutionBudget(t *testing.T) {
 	ctx, cancel := context.WithCancelCause(context.Background())
