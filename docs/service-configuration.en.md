@@ -33,7 +33,7 @@ The operator `cache` section controls **capacity and safety**; it does not enabl
 
 `fetch.maxConcurrentHTTPRequests` is the instance-wide ceiling for upstream requests in flight. It is different from `api.limits`: a request declares the known provider quota and the engine paces every physical attempt, including retries and pagination. A `429` or `Retry-After` publishes a cooldown for the affected scope, so other executions sharing it wait; the cooldown is retained in SQLite across a restart.
 
-By default, a quota is shared by upstream origin and credential. If the provider limits by account, IP, multiple API keys, or multiple origins, declare an operator group so all consumers obey one restriction:
+Without a managed group, executions with the same upstream origin, credential, and `api.limits` share a quota. Different `api.limits` values have separate scopes. If the provider limits by account, IP, multiple API keys, or multiple origins, declare an operator group so all consumers obey one restriction:
 
 ```yaml
 throttle:
@@ -47,6 +47,6 @@ throttle:
         concurrency: 4
 ```
 
-With `credentialMode: shared`, every credential against those origins shares the quota. With `separate` —the default— each credential has its own quota. A group adds a restriction: if a request declares `200/1m` and the group declares `100/1m`, both apply and traffic is constrained by the stricter limit. Two instances with separate data directories do not share pacing; horizontal scaling needs distributed coordination first.
+With `credentialMode: shared`, every credential against those origins shares the quota. With `separate` —the default— each credential has its own quota. When a group covers the origin, its limits take precedence over `api.limits` and are shared by the group's executions. `call.limits` still adds endpoint restrictions. Two instances with separate data directories do not share pacing; horizontal scaling needs distributed coordination first.
 
 For controlled cache invalidation, grant selected API principals the `cache:clear` permission and use the documented versioned routes. Authenticated playground sessions can also clear the shared response cache after a confirmation prompt; see [Cache maintenance](cache-maintenance.en.md).

@@ -1906,7 +1906,7 @@ providerScope = HMAC(origin canónico + identidad de credencial upstream)
 endpointScope = HMAC(providerScope + método + plantilla canónica del endpoint)
 ```
 
-`origin` incluye esquema, hostname y puerto efectivo, no el UUID ni el nombre de salida. Las versiones `/v1` y `/v2` del mismo origin comparten el scope de proveedor por defecto. Los scopes son hashes, no tokens legibles.
+`origin` incluye esquema, hostname y puerto efectivo, no el UUID ni el nombre de salida. Sin grupo administrado, las versiones `/v1` y `/v2` del mismo origin comparten el scope de proveedor cuando también coinciden la credencial y `api.limits`. Los scopes son hashes, no tokens legibles.
 
 Dos consumidores autenticados ante el engine que usan la misma credencial upstream comparten cuota, aunque su caché permanezca aislada por owner. Para `auth: none`, el scope es por origin y se comparte conservadoramente.
 
@@ -1916,7 +1916,7 @@ Las variables de una plantilla se normalizan por posición, no por sus nombres. 
 
 La cuota real puede estar asociada a IP, aplicación, cuenta, varios tokens o varios hosts. El engine no puede inferir eso de la URL. La configuración del servidor permite `quotaGroups` que agrupan origins y definen si las credenciales comparten un scope.
 
-Los consumidores no pueden elegir un nombre arbitrario para escapar de una cuota. Un grupo administrado puede añadir límites más estrictos, nunca dar permiso para ignorar un límite declarado menor.
+Los consumidores no pueden elegir un nombre arbitrario para escapar de una cuota. Si un grupo administrado cubre el origin, su política prevalece sobre `api.limits` y comparte el presupuesto según `credentialMode`.
 
 Para rotación de tokens que mantiene la misma cuenta/cuota, configurar un grupo estable compartido. Sin ese mapeo, dos credenciales distintas se consideran scopes distintos: la limitación debe quedar visible en la documentación operativa.
 
@@ -1926,7 +1926,7 @@ La cuota de `api.limits` aplica a **cada intento HTTP del árbol**. La de `call.
 
 La cuota de un nodo **no limita automáticamente las requests de sus hijos a otros endpoints**. Para una familia de endpoints con una cuota compartida, el operador debe configurar un grupo; no usar la jerarquía del JSON como sustituto de la semántica del proveedor.
 
-Si dos declaraciones activas identifican el mismo scope con políticas incompatibles, rechazar el conflicto con `QUOTA_POLICY_CONFLICT`; no crear un segundo bucket porque cambió el JSON. Si un endpoint ya tiene una restricción registrada, una llamada que no la declare no puede eludirla. Una configuración administrada es la fuente superior para restricciones conocidas.
+Sin grupo administrado, el scope de proveedor incluye la política `api.limits`; declaraciones distintas para el mismo origin y credencial pueden coexistir. Si dos declaraciones de endpoint identifican el mismo scope con políticas incompatibles, rechazar el conflicto con `QUOTA_POLICY_CONFLICT`. Si un endpoint ya tiene una restricción registrada, una llamada que no la declare no puede eludirla. Una configuración administrada es la fuente superior para restricciones conocidas.
 
 Mantener políticas registradas al menos durante el periodo relevante y mientras haya actividad/cooldown. Acotar el registro con `maxQuotaScopes`; no eliminar scopes activos o en enfriamiento para permitir un reinicio artificial de presupuesto.
 

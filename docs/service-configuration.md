@@ -35,7 +35,7 @@ La sección de operador `cache` define **capacidad y seguridad**, no activa cach
 
 `fetch.maxConcurrentHTTPRequests` es el techo global de requests upstream simultáneos de la instancia. Es distinto de `api.limits`: el request declara la cuota conocida de un proveedor y el engine aplica pacing a cada intento físico, incluidos retries y paginación. Un `429` o `Retry-After` publica un cooldown para el scope afectado, por lo que las demás ejecuciones que lo comparten esperan; el cooldown se conserva en SQLite al reiniciar.
 
-Por defecto la cuota se comparte por origin y credencial upstream. Si el proveedor limita por cuenta, IP, varias API keys o varios origins, declarar un grupo del operador para que todos cumplan la misma restricción:
+Sin un grupo administrado, las ejecuciones con el mismo origin, credencial upstream y `api.limits` comparten cuota. Valores distintos de `api.limits` tienen scopes independientes. Si el proveedor limita por cuenta, IP, varias API keys o varios origins, declarar un grupo del operador para que todos cumplan la misma restricción:
 
 ```yaml
 throttle:
@@ -49,6 +49,6 @@ throttle:
         concurrency: 4
 ```
 
-Con `credentialMode: shared`, todas las credenciales usadas contra esos origins comparten la cuota. Con `separate` —el default— cada credencial tiene su cuota propia. El grupo añade una restricción: si un request declara `200/1m` y el grupo declara `100/1m`, ambas se aplican y el tráfico queda limitado por la más restrictiva. Dos instancias con directorios de datos diferentes no comparten pacing; antes de escalar horizontalmente se necesita una coordinación distribuida.
+Con `credentialMode: shared`, todas las credenciales usadas contra esos origins comparten la cuota. Con `separate` —el default— cada credencial tiene su cuota propia. Cuando un grupo cubre el origin, sus límites prevalecen sobre `api.limits` y se comparten entre las ejecuciones del grupo. `call.limits` sigue añadiendo restricciones del endpoint. Dos instancias con directorios de datos diferentes no comparten pacing; antes de escalar horizontalmente se necesita una coordinación distribuida.
 
 Para invalidar la caché de forma controlada, conceder el permiso `cache:clear` a los principals de API seleccionados y usar las rutas versionadas documentadas. Las sesiones autenticadas del playground también pueden vaciar la caché compartida de respuestas tras una confirmación; consultar [Mantenimiento de caché](cache-maintenance.md).

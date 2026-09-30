@@ -18,12 +18,12 @@ func DeclaredQuotaRules(compiled definition.CompiledDefinition, resolver *QuotaS
 	if err != nil {
 		return nil, err
 	}
-	provider, err := resolver.ProviderScope(compiled.API.BaseURL, string(identity))
+	providerRule, err := resolver.ProviderRule(compiled.API.BaseURL, string(identity), compiled.API.Limits)
 	if err != nil {
 		return nil, err
 	}
-	limits := compiled.API.Limits
-	rules := map[string]domain.QuotaRule{provider: {Scope: provider, Requests: int(limits.Requests), Period: limits.Per, Concurrency: limits.Concurrency}}
+	provider := providerRule.Scope
+	rules := map[string]domain.QuotaRule{provider: providerRule}
 	managed, err := resolver.ManagedRules(compiled.API.BaseURL, string(identity))
 	if err != nil {
 		return nil, err

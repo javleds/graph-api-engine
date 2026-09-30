@@ -8,6 +8,48 @@ import (
 	"time"
 )
 
+func TestDifferentAPILimitsUseDistinctScopesForTheSameProvider(t *testing.T) {
+	resolver := NewQuotaScopeResolver([]byte("key"))
+	compiled := definition.CompiledDefinition{API: definition.APIConnection{BaseURL: "https://example.com", Limits: definition.RatePolicy{Requests: 10, Per: time.Minute}}}
+	first, err := DeclaredQuotaRules(compiled, resolver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiled.API.Limits = definition.RatePolicy{Requests: 20, Per: time.Minute, Concurrency: 2}
+	second, err := DeclaredQuotaRules(compiled, resolver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first[0].Scope == second[0].Scope || first[0].Requests != 10 || second[0].Requests != 20 || second[0].Concurrency != 2 {
+		t.Fatal("different API limits share a quota scope")
+	}
+}
+
+func TestManagedGroupOverridesAPILimits(t *testing.T) {
+	resolver, err := NewConfiguredQuotaScopeResolver([]byte("key"), []domain.QuotaGroup{{Name: "account", Origins: []string{"https://example.com"}, Limits: domain.QuotaRule{Requests: 5, Period: time.Second}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiled := definition.CompiledDefinition{API: definition.APIConnection{BaseURL: "https://example.com", Limits: definition.RatePolicy{Requests: 10, Per: time.Minute}}}
+	first, err := DeclaredQuotaRules(compiled, resolver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiled.API.Limits = definition.RatePolicy{Requests: 20, Per: time.Hour}
+	second, err := DeclaredQuotaRules(compiled, resolver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first) != 2 || len(second) != 2 || first[0] != second[0] || first[1] != second[1] {
+		t.Fatalf("managed policy changed with API limits: %v, %v", first, second)
+	}
+	for _, rule := range first {
+		if rule.Requests != 0 && (rule.Requests != 5 || rule.Period != time.Second) {
+			t.Fatalf("request limits applied instead of managed limits: %v", first)
+		}
+	}
+}
+
 func TestDeclaredQuotaRulesMatchRuntimeScopesAndMergeOmissions(t *testing.T) {
 	resolver, err := NewConfiguredQuotaScopeResolver([]byte("key"), []domain.QuotaGroup{{Name: "group", Origins: []string{"https://example.com"}, Limits: domain.QuotaRule{Requests: 100, Period: time.Minute}}})
 	if err != nil {

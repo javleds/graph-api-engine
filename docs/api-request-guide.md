@@ -238,7 +238,7 @@ No configurar `Host`, `Connection`, `Content-Length`, `Transfer-Encoding`, `TE`,
 
 `api.limits` exige `requests` entero positivo y `per`. `concurrency`, si se declara, es un entero positivo; si se omite, se usa el límite HTTP configurado por el operador. Las cuotas aplican a intentos físicos, incluidos retries, mediante pacing; no prometen ráfagas de 100 requests simultáneas.
 
-`call.limits` puede contener `requests` + `per`, solo `concurrency`, o ambos. No puede estar vacío. Agrega restricciones del endpoint para todas sus páginas e IDs, sin sustituir la cuota global y sin limitar automáticamente a hijos que consultan otros endpoints. Las cuotas se comparten por proveedor/credencial; declaraciones incompatibles del mismo scope causan `QUOTA_POLICY_CONFLICT`.
+`call.limits` puede contener `requests` + `per`, solo `concurrency`, o ambos. No puede estar vacío. Agrega restricciones del endpoint para todas sus páginas e IDs, sin sustituir la cuota global y sin limitar automáticamente a hijos que consultan otros endpoints. Sin un `quotaGroup` aplicable, `api.limits` es la cuota efectiva: distintos valores pueden coexistir para el mismo proveedor y credencial. Un `quotaGroup` aplicable prevalece sobre `api.limits`. Declaraciones incompatibles de `call.limits` dentro del mismo scope causan `QUOTA_POLICY_CONFLICT`.
 
 Las duraciones usan un entero positivo y una sola unidad: `250ms`, `1s`, `5m`, `2h`, `7d`. No usar `0s`, `1.5s`, `1h30m`, negativos ni espacios; `1d` equivale a 24 horas.
 

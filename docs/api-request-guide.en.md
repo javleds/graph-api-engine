@@ -174,7 +174,7 @@ Do not set `Host`, `Connection`, `Content-Length`, `Transfer-Encoding`, `TE`, `T
 
 `api.limits` requires a positive integer `requests` and `per`. `concurrency` is optional; when omitted, the operator's global fetch concurrency applies. Quotas apply to physical attempts, including retries, through pacing. They do not promise a burst of 100 simultaneous requests.
 
-`call.limits` may contain `requests` plus `per`, only `concurrency`, or both. It cannot be empty. It adds an endpoint restriction for every page and ID resolved by that call; it never replaces the provider quota and does not automatically limit children that call other endpoints. Quotas are shared by provider and credential; incompatible declarations for the same scope fail with `QUOTA_POLICY_CONFLICT`.
+`call.limits` may contain `requests` plus `per`, only `concurrency`, or both. It cannot be empty. It adds an endpoint restriction for every page and ID resolved by that call; it never replaces the provider quota and does not automatically limit children that call other endpoints. Without an applicable `quotaGroup`, `api.limits` is the effective quota: different values can coexist for the same provider and credential. An applicable `quotaGroup` takes precedence over `api.limits`. Incompatible `call.limits` declarations within the same scope fail with `QUOTA_POLICY_CONFLICT`.
 
 Durations use one positive integer and unit: `250ms`, `1s`, `5m`, `2h`, or `7d`. Do not use `0s`, `1.5s`, `1h30m`, negative values, or spaces. `1d` means 24 hours.
 

@@ -79,15 +79,15 @@ func (p *CallProcessor) buildRequest(ctx context.Context, call definition.Compil
 	if resolver == nil {
 		resolver = fetchapp.NewQuotaScopeResolver(p.engine.IdentityKey)
 	}
-	provider, err := resolver.ProviderScope(p.definition.API.BaseURL, result.CredentialIdentity)
+	providerRule, err := resolver.ProviderRule(p.definition.API.BaseURL, result.CredentialIdentity, p.definition.API.Limits)
 	if err != nil {
 		return result, err
 	}
+	provider := providerRule.Scope
 	result.Request = fetch.OutboundRequest{Method: call.Request.Method, URL: resolved, Headers: headers}
 	result.Admission = fetch.AdmissionRequest{ExecutionID: p.executionID, ProviderScope: provider}
 	result.Admission.Deadline, _ = ctx.Deadline()
-	limits := p.definition.API.Limits
-	result.Admission.Rules = append(result.Admission.Rules, fetch.QuotaRule{Scope: provider, Requests: int(limits.Requests), Period: limits.Per, Concurrency: limits.Concurrency})
+	result.Admission.Rules = append(result.Admission.Rules, providerRule)
 	base, _ := url.Parse(p.definition.API.BaseURL)
 	result.EndpointTemplate = strings.TrimSuffix(base.EscapedPath(), "/") + call.Request.Path.Source
 	endpoint, err := resolver.EndpointScopeForBase(p.definition.API.BaseURL, provider, call.Request.Method, call.Request.Path.Source)
@@ -96,7 +96,7 @@ func (p *CallProcessor) buildRequest(ctx context.Context, call definition.Compil
 	}
 	result.Admission.Rules = append(result.Admission.Rules, fetch.QuotaRule{Scope: endpoint})
 	if call.Limits != nil {
-		limits = *call.Limits
+		limits := *call.Limits
 		result.Admission.Rules[len(result.Admission.Rules)-1] = fetch.QuotaRule{Scope: endpoint, Requests: int(limits.Requests), Period: limits.Per, Concurrency: limits.Concurrency}
 	}
 

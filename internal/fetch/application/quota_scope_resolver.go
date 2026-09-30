@@ -6,11 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/javleds/api-engine/internal/fetch/domain"
 	"net"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
+
+	definition "github.com/javleds/api-engine/internal/definition/domain"
+	"github.com/javleds/api-engine/internal/fetch/domain"
 )
 
 type QuotaScopeResolver struct {
@@ -28,6 +31,25 @@ func (r *QuotaScopeResolver) ProviderScope(baseURL, credentialIdentity string) (
 		return "", err
 	}
 	return r.digest([]string{"provider:v1", origin, credentialIdentity}), nil
+}
+
+// ProviderRule selects the effective provider quota for a definition. A managed
+// group owns the rate when one covers the origin; otherwise each declared rate
+// has its own scope so concurrent definitions can use different limits.
+func (r *QuotaScopeResolver) ProviderRule(baseURL, credentialIdentity string, limits definition.RatePolicy) (domain.QuotaRule, error) {
+	provider, err := r.ProviderScope(baseURL, credentialIdentity)
+	if err != nil {
+		return domain.QuotaRule{}, err
+	}
+	managed, err := r.ManagedRules(baseURL, credentialIdentity)
+	if err != nil {
+		return domain.QuotaRule{}, err
+	}
+	if len(managed) > 0 {
+		return domain.QuotaRule{Scope: provider}, nil
+	}
+	scope := r.digest([]string{"provider-policy:v1", provider, strconv.FormatInt(limits.Requests, 10), limits.Per.String(), strconv.Itoa(limits.Concurrency)})
+	return domain.QuotaRule{Scope: scope, Requests: int(limits.Requests), Period: limits.Per, Concurrency: limits.Concurrency}, nil
 }
 
 func canonicalOrigin(raw string) (string, error) {
